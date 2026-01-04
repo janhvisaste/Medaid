@@ -1,0 +1,165 @@
+{
+  "_ts": 1767553147.00105,
+  "value": [
+    {
+      "name": "Sardar Patel Cantonment General Hospital",
+      "address": "411001",
+      "lat": 18.5027163,
+      "lng": 73.87712,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5027163&mlon=73.87712#map=16/18.5027163/73.87712",
+      "distance_km": 3.2
+    },
+    {
+      "name": "Dr. Babasaheb Ambedkar Cantonment General Hospital",
+      "address": "411003",
+      "lat": 18.569025,
+      "lng": 73.8486994,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.569025&mlon=73.8486994#map=16/18.569025/73.8486994",
+      "distance_km": 5.3
+    },
+    {
+      "name": "Command Hospital Southern Command",
+      "address": "Right Flank Road, Pune",
+      "lat": 18.5005828,
+      "lng": 73.8894328,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5005828&mlon=73.8894328#map=16/18.5005828/73.8894328",
+      "distance_km": 4.3
+    },
+    {
+      "name": "Sassoon Hospital",
+      "address": "",
+      "lat": 18.5251434,
+      "lng": 73.8695664,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5251434&mlon=73.8695664#map=16/18.5251434/73.8695664",
+      "distance_km": 1.6
+    },
+    {
+      "name": "Sanjeevani Vitalife Medipoint Hospital",
+      "address": "New DP Road, Pune, 411007",
+      "lat": 18.5649263,
+      "lng": 73.8022626,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5649263&mlon=73.8022626#map=16/18.5649263/73.8022626",
+      "distance_km": 7.3
+    },
+    {
+      "name": "LifeLine Hospital",
+      "address": "",
+      "lat": 18.5597445,
+      "lng": 73.8062674,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5597445&mlon=73.8062674#map=16/18.5597445/73.8062674",
+      "distance_km": 6.6
+    },
+    {
+      "name": "Dr. Chowdhary",
+      "address": "",
+      "lat": 18.5547291,
+      "lng": 73.8082012,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5547291&mlon=73.8082012#map=16/18.5547291/73.8082012",
+      "distance_km": 6.1
+    },
+    {
+      "name": "Dr. Bonagiri",
+      "address": "",
+      "lat": 18.5554816,
+      "lng": 73.8088556,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5554816&mlon=73.8088556#map=16/18.5554816/73.8088556",
+      "distance_km": 6.1
+    },
+    {
+      "name": "Shree Sakthi Hospital",
+      "address": "",
+      "lat": 18.5883392,
+      "lng": 73.8015444,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5883392&mlon=73.8015444#map=16/18.5883392/73.8015444",
+      "distance_km": 9.3
+    },
+    {
+      "name": "Karva Hospital",
+      "address": "",
+      "lat": 18.5009733,
+      "lng": 73.8461063,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5009733&mlon=73.8461063#map=16/18.5009733/73.8461063",
+      "distance_km": 2.4
+    },
+    {
+      "name": "Jeevan Deep Medicare Centre",
+      "address": "Pune, 411021",
+      "lat": 18.5433023,
+      "lng": 73.7838607,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5433023&mlon=73.7838607#map=16/18.5433023/73.7838607",
+      "distance_km": 7.8
+    },
+    {
+      "name": "Sahyadri Hospital",
+      "address": "411038",
+      "lat": 18.5074625,
+      "lng": 73.8057842,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5074625&mlon=73.8057842#map=16/18.5074625/73.8057842",
+      "distance_km": 5.4
+    },
+    {
+      "name": "Krishna Hospital, Pune",
+      "address": "411038",
+      "lat": 18.5092055,
+      "lng": 73.8128199,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5092055&mlon=73.8128199#map=16/18.5092055/73.8128199",
+      "distance_km": 4.6
+    },
+    {
+      "name": "Madhukar General Hospital",
+      "address": "411051",
+      "lat": 18.4789234,
+      "lng": 73.8241232,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.4789234&mlon=73.8241232#map=16/18.4789234/73.8241232",
+      "distance_km": 5.7
+    },
+    {
+      "name": "Dr. Mudgerikar Clinic",
+      "address": "",
+      "lat": 18.477361,
+      "lng": 73.819019,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.477361&mlon=73.819019#map=16/18.477361/73.819019",
+      "distance_km": 6.2
+    },
+    {
+      "name": "Dr. Bodhe Clinic",
+      "address": "",
+      "lat": 18.4745186,
+      "lng": 73.8132288,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.4745186&mlon=73.8132288#map=16/18.4745186/73.8132288",
+      "distance_km": 6.8
+    },
+    {
+      "name": "Dr. Naik Clinic",
+      "address": "",
+      "lat": 18.4745644,
+      "lng": 73.8140764,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.4745644&mlon=73.8140764#map=16/18.4745644/73.8140764",
+      "distance_km": 6.7
+    },
+    {
+      "name": "Shewale Hospital",
+      "address": "411020",
+      "lat": 18.5626652,
+      "lng": 73.8325327,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.5626652&mlon=73.8325327#map=16/18.5626652/73.8325327",
+      "distance_km": 5.1
+    },
+    {
+      "name": "Trimurti Hospital",
+      "address": "",
+      "lat": 18.462396,
+      "lng": 73.8150518,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.462396&mlon=73.8150518#map=16/18.462396/73.8150518",
+      "distance_km": 7.8
+    },
+    {
+      "name": "Sanjiwini Hospital",
+      "address": "",
+      "lat": 18.4433669,
+      "lng": 73.848079,
+      "maps_url": "https://www.openstreetmap.org/?mlat=18.4433669&mlon=73.848079#map=16/18.4433669/73.848079",
+      "distance_km": 8.7
+    }
+  ]
+}
