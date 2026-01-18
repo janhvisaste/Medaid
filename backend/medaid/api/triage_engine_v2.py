@@ -217,14 +217,28 @@ Return ONLY the JSON object, no additional text."""
         
         # Structure possible conditions
         conditions = assessment.get('possible_conditions', [])
+        generic_names = ['medical condition', 'unknown condition', 'condition requiring evaluation', 'medical issue']
+        
         for condition in conditions:
             if isinstance(condition, dict):
+                disease_name = condition.get('disease', 'Unknown Condition')
+                
+                # Check if it's a generic name
+                if any(generic in disease_name.lower() for generic in generic_names):
+                    print(f"⚠️ Detected generic disease name: {disease_name}, skipping...")
+                    continue  # Skip generic conditions
+                
                 structured['possible_conditions'].append({
-                    'disease': condition.get('disease', 'Unknown Condition'),
+                    'disease': disease_name,
                     'confidence': float(condition.get('confidence', 0.5)),
                     'supporting_evidence': condition.get('supporting_evidence', [])
                 })
             elif isinstance(condition, str):
+                # Check if it's a generic name
+                if any(generic in condition.lower() for generic in generic_names):
+                    print(f"⚠️ Detected generic disease name: {condition}, skipping...")
+                    continue  # Skip generic conditions
+                
                 # Simple string condition
                 structured['possible_conditions'].append({
                     'disease': condition,
@@ -232,15 +246,51 @@ Return ONLY the JSON object, no additional text."""
                     'supporting_evidence': []
                 })
         
-        # Ensure at least one condition
+        # If no valid conditions after filtering, provide symptom-based suggestions
         if not structured['possible_conditions']:
-            structured['possible_conditions'].append({
-                'disease': 'Medical Condition Requiring Evaluation',
-                'confidence': 0.6,
-                'supporting_evidence': ['Symptoms require professional assessment']
-            })
+            print("⚠️ No specific conditions provided by AI, generating based on symptoms...")
+            structured['possible_conditions'] = self._generate_symptom_based_conditions(symptoms)
         
         return structured
+    
+    def _generate_symptom_based_conditions(self, symptoms: str) -> List[Dict]:
+        """Generate specific conditions based on symptom keywords"""
+        symptoms_lower = symptoms.lower()
+        conditions = []
+        
+        # Gastrointestinal symptoms
+        if any(word in symptoms_lower for word in ['stomach', 'vomit', 'nausea', 'diarrhea', 'abdominal']):
+            conditions.extend([
+                {'disease': 'Viral Gastroenteritis', 'confidence': 0.30, 'supporting_evidence': ['Gastrointestinal symptoms present']},
+                {'disease': 'Food Poisoning', 'confidence': 0.25, 'supporting_evidence': ['Acute onset of GI symptoms']},
+                {'disease': 'Peptic Ulcer', 'confidence': 0.20, 'supporting_evidence': ['Abdominal discomfort']},
+            ])
+        
+        # Respiratory symptoms
+        elif any(word in symptoms_lower for word in ['cough', 'cold', 'fever', 'throat', 'breathing']):
+            conditions.extend([
+                {'disease': 'Viral Upper Respiratory Infection', 'confidence': 0.35, 'supporting_evidence': ['Respiratory symptoms']},
+                {'disease': 'Influenza', 'confidence': 0.25, 'supporting_evidence': ['Fever and body aches']},
+                {'disease': 'Bronchitis', 'confidence': 0.20, 'supporting_evidence': ['Cough present']},
+            ])
+        
+        # Pain symptoms
+        elif any(word in symptoms_lower for word in ['pain', 'ache', 'hurt']):
+            conditions.extend([
+                {'disease': 'Musculoskeletal Pain', 'confidence': 0.30, 'supporting_evidence': ['Pain symptoms']},
+                {'disease': 'Viral Infection', 'confidence': 0.25, 'supporting_evidence': ['Body aches']},
+                {'disease': 'Inflammatory Condition', 'confidence': 0.20, 'supporting_evidence': ['Pain and discomfort']},
+            ])
+        
+        # Default fallback
+        else:
+            conditions.extend([
+                {'disease': 'Viral Infection', 'confidence': 0.30, 'supporting_evidence': ['Common symptoms present']},
+                {'disease': 'Acute Illness', 'confidence': 0.25, 'supporting_evidence': ['Symptoms require evaluation']},
+                {'disease': 'Benign Condition', 'confidence': 0.20, 'supporting_evidence': ['Likely self-limiting']},
+            ])
+        
+        return conditions[:3]  # Return top 3
     
     def _get_default_disclaimer(self, risk_level: str) -> str:
         """Get appropriate disclaimer based on risk level"""
