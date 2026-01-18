@@ -86,6 +86,7 @@ const Dashboard: React.FC = () => {
   };
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [userLocation, setUserLocation] = useState('');  // User's location for nearby hospitals
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -221,6 +222,7 @@ const Dashboard: React.FC = () => {
           body: JSON.stringify({
             current_symptoms: currentInput,
             input_mode: 'text',
+            location: userLocation || '',  // Use user-provided location
           })
         });
       }
@@ -240,45 +242,163 @@ const Dashboard: React.FC = () => {
            </div>`
         : '';
 
-      // Create a rich formatted response with styled components
+      // Create a rich formatted response with styled components (V2 Intelligence)
       const riskColor =
         data.risk_level === 'emergency' ? 'bg-red-600' :
           data.risk_level === 'high' ? 'bg-orange-600' :
             data.risk_level === 'medium' ? 'bg-yellow-600' : 'bg-green-600';
 
       responseText += `<div class="space-y-4">`;
+
+      // Risk Level Header with Probability
       responseText += `<div class="${riskColor} text-white px-4 py-3 rounded-xl font-bold text-lg">`;
-      responseText += `🎯 ${data.risk_level.toUpperCase()} RISK — ${(data.confidence * 100).toFixed(0)}% confidence`;
+      responseText += `🎯 ${data.risk_level.toUpperCase()} RISK`;
+      if (data.risk_probability) {
+        responseText += ` — ${(data.risk_probability * 100).toFixed(0)}% probability`;
+      }
+      responseText += ` — ${(data.confidence * 100).toFixed(0)}% confidence`;
       responseText += `</div>`;
 
-      responseText += `<div class="text-gray-100 leading-relaxed">`;
-      responseText += data.reasoning;
-      responseText += `</div>`;
+      // Reasoning/Justification
+      if (data.reasoning) {
+        responseText += `<div class="bg-gray-800/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-gray-300 mb-2">🧠 Assessment Reasoning:</div>`;
+        responseText += `<div class="text-gray-100 leading-relaxed text-sm">${data.reasoning}</div>`;
+        responseText += `</div>`;
+      }
 
+      // Top Possible Conditions with Probabilities
       if (data.possible_conditions && data.possible_conditions.length > 0) {
-        responseText += `<div class="mt-4">`;
-        responseText += `<div class="text-sm font-semibold text-gray-300 mb-2">📋 Possible Conditions:</div>`;
-        responseText += `<div class="grid gap-2">`;
+        responseText += `<div class="bg-gray-800/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-gray-300 mb-3">📋 Possible Conditions:</div>`;
+        responseText += `<div class="space-y-3">`;
+
         data.possible_conditions.forEach((condition: any, idx: number) => {
-          const conditionText = typeof condition === 'string' ? condition : condition.disease_name;
-          responseText += `<div class="bg-gray-700/50 px-3 py-2 rounded-lg text-sm text-gray-200">`;
-          responseText += `${idx + 1}. ${conditionText}`;
+          const isObject = typeof condition === 'object';
+          const diseaseName = isObject ? condition.disease : condition;
+          const confidence = isObject && condition.confidence ? (condition.confidence * 100).toFixed(0) : null;
+          const evidence = isObject && condition.supporting_evidence ? condition.supporting_evidence : [];
+
+          responseText += `<div class="bg-gray-700/50 px-3 py-3 rounded-lg">`;
+          responseText += `<div class="flex items-start justify-between mb-2">`;
+          responseText += `<div class="font-medium text-white">${idx + 1}. ${diseaseName}</div>`;
+          if (confidence) {
+            responseText += `<div class="text-xs font-semibold px-2 py-1 bg-blue-600 text-white rounded-full">${confidence}%</div>`;
+          }
+          responseText += `</div>`;
+
+          // Supporting Evidence
+          if (evidence.length > 0) {
+            responseText += `<div class="text-xs text-gray-400 space-y-1 ml-4">`;
+            evidence.forEach((ev: string) => {
+              responseText += `<div class="flex items-start gap-1.5">`;
+              responseText += `<span class="text-blue-400 mt-0.5">•</span>`;
+              responseText += `<span>${ev}</span>`;
+              responseText += `</div>`;
+            });
+            responseText += `</div>`;
+          }
           responseText += `</div>`;
         });
         responseText += `</div></div>`;
       }
 
+      // Ruled Out Conditions
+      if (data.ruled_out_conditions && data.ruled_out_conditions.length > 0) {
+        responseText += `<div class="bg-gray-800/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-gray-300 mb-2">❌ Ruled Out:</div>`;
+        responseText += `<div class="space-y-1.5">`;
+        data.ruled_out_conditions.forEach((ruled: any) => {
+          responseText += `<div class="text-xs text-gray-400 flex items-start gap-2">`;
+          responseText += `<span class="text-red-400">✗</span>`;
+          responseText += `<span><strong class="text-gray-300">${ruled.condition}</strong> - ${ruled.reason}</span>`;
+          responseText += `</div>`;
+        });
+        responseText += `</div></div>`;
+      }
+
+      // Recommendations
       if (data.recommendations && data.recommendations.length > 0) {
-        responseText += `<div class="mt-4">`;
+        responseText += `<div class="bg-gray-800/50 px-4 py-3 rounded-lg">`;
         responseText += `<div class="text-sm font-semibold text-gray-300 mb-2">✅ Recommendations:</div>`;
         responseText += `<div class="space-y-2">`;
-        data.recommendations.forEach((rec: string, idx: number) => {
+        data.recommendations.forEach((rec: string) => {
           responseText += `<div class="flex items-start gap-2 text-sm text-gray-200">`;
           responseText += `<span class="text-green-400 mt-0.5">✓</span>`;
           responseText += `<span>${rec}</span>`;
           responseText += `</div>`;
         });
         responseText += `</div></div>`;
+      }
+
+      // Follow-up Questions
+      if (data.follow_up_questions && data.follow_up_questions.length > 0) {
+        responseText += `<div class="bg-blue-900/30 border border-blue-700/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-blue-300 mb-2">❓ To Better Assess:</div>`;
+        responseText += `<div class="space-y-1.5">`;
+        data.follow_up_questions.forEach((q: string) => {
+          responseText += `<div class="text-sm text-blue-200">${q}</div>`;
+        });
+        responseText += `</div></div>`;
+      }
+
+      // Nearby Hospitals/Clinics
+      if (data.nearby_hospitals && data.nearby_hospitals.length > 0) {
+        responseText += `<div class="bg-green-900/20 border border-green-700/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-green-300 mb-3">🏥 Nearby Medical Facilities:</div>`;
+        responseText += `<div class="space-y-2.5">`;
+        data.nearby_hospitals.forEach((hospital: any) => {
+          responseText += `<div class="bg-gray-800/50 px-3 py-2.5 rounded-lg">`;
+          responseText += `<div class="flex items-start justify-between mb-1.5">`;
+          responseText += `<div class="font-medium text-white text-sm">${hospital.name}</div>`;
+          if (hospital.distance) {
+            responseText += `<div class="text-xs font-semibold px-2 py-0.5 bg-green-600 text-white rounded-full">${hospital.distance}</div>`;
+          }
+          responseText += `</div>`;
+          if (hospital.address) {
+            responseText += `<div class="text-xs text-gray-400 mb-2">${hospital.address}</div>`;
+          }
+          responseText += `<div class="flex items-center gap-3 text-xs">`;
+          if (hospital.rating) {
+            responseText += `<div class="flex items-center gap-1 text-yellow-400">`;
+            responseText += `<span>⭐</span><span>${hospital.rating.toFixed(1)}</span>`;
+            responseText += `</div>`;
+          }
+          if (hospital.is_open !== null && hospital.is_open !== undefined) {
+            const openStatus = hospital.is_open ? 'Open Now' : 'Closed';
+            const openColor = hospital.is_open ? 'text-green-400' : 'text-red-400';
+            responseText += `<div class="${openColor}">● ${openStatus}</div>`;
+          }
+          if (hospital.phone) {
+            responseText += `<div class="text-blue-400">📞 ${hospital.phone}</div>`;
+          }
+          responseText += `</div>`;
+          // Add Google Maps link
+          if (hospital.maps_url) {
+            responseText += `<div class="mt-2">`;
+            responseText += `<a href="${hospital.maps_url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors">`;
+            responseText += `<span>📍</span><span>Get Directions</span>`;
+            responseText += `</a>`;
+            responseText += `</div>`;
+          }
+          responseText += `</div>`;
+        });
+        responseText += `</div></div>`;
+      }
+
+      // When to Seek Care
+      if (data.when_to_seek_care) {
+        responseText += `<div class="bg-yellow-900/20 border border-yellow-700/50 px-4 py-3 rounded-lg">`;
+        responseText += `<div class="text-sm font-semibold text-yellow-300 mb-1">⏰ When to Seek Care:</div>`;
+        responseText += `<div class="text-sm text-yellow-200">${data.when_to_seek_care}</div>`;
+        responseText += `</div>`;
+      }
+
+      // Disclaimer
+      if (data.disclaimer) {
+        responseText += `<div class="bg-yellow-900/20 border border-yellow-700/50 px-3 py-2 rounded-lg">`;
+        responseText += `<div class="text-xs text-yellow-200">${data.disclaimer}</div>`;
+        responseText += `</div>`;
       }
 
       responseText += `</div>`;
@@ -707,8 +827,8 @@ const Dashboard: React.FC = () => {
                     )}
                     <div
                       className={`max-w-2xl px-4 py-3 rounded-2xl ${message.sender === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
+                        ? 'bg-blue-600 text-white'
+                        : theme === 'dark' ? 'bg-gray-800 text-gray-100' : 'bg-gray-100 text-gray-900'
                         }`}
                     >
                       {message.sender === 'ai' && message.text.includes('<div') ? (
@@ -748,6 +868,20 @@ const Dashboard: React.FC = () => {
           {/* Input Area */}
           <div className={`border-t ${theme === 'dark' ? 'border-gray-800/50 bg-[#0a0a0a]' : 'border-gray-200 bg-white'} p-6`}>
             <div className="max-w-4xl mx-auto">
+              {/* Location Input */}
+              <div className="mb-4">
+                <label className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-2 block`}>
+                  📍 Your Location (City or Pincode) - Optional, for nearby hospitals
+                </label>
+                <input
+                  type="text"
+                  value={userLocation}
+                  onChange={(e) => setUserLocation(e.target.value)}
+                  placeholder="e.g., Pune, Mumbai, 411001"
+                  className={`w-full ${theme === 'dark' ? 'bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'} border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
+                />
+              </div>
+
               {/* Purple Gradient Border Container */}
               <div className="relative p-[2px] rounded-2xl bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600 bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]">
                 <style>{`
@@ -1390,12 +1524,12 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onClick, t
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group ${active
-          ? theme === 'dark'
-            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white'
-            : 'bg-gradient-to-r from-blue-100 to-purple-100 text-gray-900'
-          : theme === 'dark'
-            ? 'text-gray-400 hover:text-white hover:bg-gray-800/30'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+        ? theme === 'dark'
+          ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white'
+          : 'bg-gradient-to-r from-blue-100 to-purple-100 text-gray-900'
+        : theme === 'dark'
+          ? 'text-gray-400 hover:text-white hover:bg-gray-800/30'
+          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
         }`}
     >
       {active && (

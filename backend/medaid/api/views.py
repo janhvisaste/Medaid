@@ -31,6 +31,8 @@ from .serializers import (
     TriageRecordSerializer
 )
 from .triage_engine import get_triage_engine, contains_emergency_keyword, get_emergency_services_by_pincode
+from .triage_engine_v2 import get_triage_engine_v2
+from .hospital_finder import get_hospital_finder
 from .report_processor import get_report_processor, summarize_medical_report_with_llm
 from .facility_recommendations import get_nearby_facilities, get_dietary_recommendations
 from .report_generator import generate_assessment_pdf, generate_health_passport_pdf
@@ -441,9 +443,36 @@ def assess_symptoms(request):
         elif pincode:
             location_str = f"Pincode: {pincode}"
         
-        # Run triage assessment with all context
-        triage_engine = get_triage_engine()
-        assessment = triage_engine.assess(symptoms_text, user_data, report_summary, location_str)
+        # Run V2 triage assessment with all context
+        triage_engine_v2 = get_triage_engine_v2()
+        assessment = triage_engine_v2.assess(symptoms_text, user_data, report_summary, location_str)
+        
+        # Find nearby hospitals if location provided
+        nearby_hospitals = []
+        if location or pincode:
+            try:
+                hospital_finder = get_hospital_finder()
+                search_location = location or pincode
+                hospitals = hospital_finder.find_nearby_hospitals(
+                    location=search_location,
+                    risk_level=assessment['risk_level'],
+                    radius=5000,
+                    max_results=5
+                )
+                
+                # Convert to dict format
+                for hospital in hospitals:
+                    nearby_hospitals.append({
+                        'name': hospital.name,
+                        'address': hospital.address,
+                        'distance': hospital.distance,
+                        'rating': hospital.rating,
+                        'phone': hospital.phone,
+                        'is_open': hospital.is_open,
+                        'maps_url': hospital.get_google_maps_url()
+                    })
+            except Exception as e:
+                print(f"Error finding nearby hospitals: {e}")
         
         # Save triage record
         triage_record = TriageRecord.objects.create(
@@ -451,20 +480,27 @@ def assess_symptoms(request):
             current_symptoms=symptoms_text,
             input_mode=input_mode,
             risk_level=assessment['risk_level'],
-            risk_probability=assessment.get('confidence', 0.0),
+            risk_probability=assessment.get('risk_probability', 0.0),
             reasoning=assessment['reasoning'],
             confidence=assessment.get('confidence', 0.0),
-            assessment_source=assessment.get('source', 'ai'),
+            assessment_source='ai_v2',
             medical_report_id=report_id if report_id else None
         )
         
-        # Save possible conditions
+        # Save possible conditions with confidence scores
         for condition in assessment.get('possible_conditions', []):
-            PossibleCondition.objects.create(
-                triage_record=triage_record,
-                disease_name=condition,
-                confidence=assessment.get('confidence', 0.0)
-            )
+            if isinstance(condition, dict):
+                PossibleCondition.objects.create(
+                    triage_record=triage_record,
+                    disease_name=condition.get('disease', 'Unknown'),
+                    confidence=condition.get('confidence', 0.0)
+                )
+            else:
+                PossibleCondition.objects.create(
+                    triage_record=triage_record,
+                    disease_name=str(condition),
+                    confidence=assessment.get('confidence', 0.0)
+                )
         
         # Save recommendations
         for idx, rec in enumerate(assessment.get('recommendations', [])):
@@ -475,15 +511,24 @@ def assess_symptoms(request):
                 priority=idx + 1
             )
         
-        return Response({
+        # Build comprehensive response
+        response_data = {
             'triage_id': triage_record.id,
             'risk_level': assessment['risk_level'],
+            'risk_probability': assessment.get('risk_probability', 0.0),
             'reasoning': assessment['reasoning'],
             'confidence': assessment.get('confidence', 0.0),
             'possible_conditions': assessment.get('possible_conditions', []),
+            'ruled_out_conditions': assessment.get('ruled_out_conditions', []),
             'recommendations': assessment.get('recommendations', []),
+            'follow_up_questions': assessment.get('follow_up_questions', []),
+            'when_to_seek_care': assessment.get('when_to_seek_care', ''),
+            'disclaimer': assessment.get('disclaimer', ''),
+            'nearby_hospitals': nearby_hospitals,
             'created_at': triage_record.created_at
-        }, status=status.HTTP_201_CREATED)
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
         
     except Exception as e:
         print(f"Error in triage assessment: {e}")
