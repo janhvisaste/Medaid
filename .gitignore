@@ -3,3 +3,14 @@
 
 full-stack/
 backend/venv/
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Node
+node_modules/
+
