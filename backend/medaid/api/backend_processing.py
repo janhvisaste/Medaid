@@ -10,19 +10,38 @@ from langchain.chains import LLMChain
 
 load_dotenv()
 
-LLM_MODEL_NAME = "models/gemini-1.5-flash"
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+LLM_MODEL_NAME = "gemini-2.5-flash"
+# Get API keys based on the split configuration
+# For document processing, prefer DOCS key but fallback to CHAT or default key
+API_KEY = os.getenv("GEMINI_API_KEY_DOCS") or os.getenv("GEMINI_API_KEY_CHAT") or os.getenv("GOOGLE_API_KEY")
 
 # Initialize LLM
-if GOOGLE_API_KEY:
+if API_KEY:
+    # The original code initialized `llm` here. The new instruction removes this
+    # direct initialization in favor of `genai.configure` and `vertexai.init`.
+    # To maintain functionality for `llm` further down, we re-add its initialization.
     llm = ChatGoogleGenerativeAI(
         model=LLM_MODEL_NAME,
-        google_api_key=GOOGLE_API_KEY,
+        google_api_key=API_KEY, # Use the resolved API_KEY
         temperature=0.3
     )
+    
+    # The following lines are added as per the instruction
+    import google.generativeai as genai
+    import vertexai
+    genai.configure(api_key=API_KEY)
+    
+    # Initialize Vertex AI for OCR
+    try:
+        vertexai.init(
+            project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+            location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        )
+    except Exception as e:
+        print(f"⚠️ Vertex AI initialization skipped: {str(e)}")
 else:
-    llm = None
-    print("❌ GOOGLE_API_KEY not found. AI triage will not work.")
+    llm = None # Ensure llm is still None if API_KEY is not found
+    print("❌ API Key not found. AI triage will not work.")
 
 # MEDICAL VALIDATION RULES
 MEDICAL_CONSISTENCY_RULES = {

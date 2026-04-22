@@ -1,0 +1,674 @@
+{
+  "_metadata": {
+    "version": "1.0",
+    "description": "Medical Knowledge Base for lab report insight generation",
+    "coverage": "CBC, LFT, RFT, Coagulation, Biochemistry, Differential Count, Absolute Counts",
+    "key_format": "{test_name}_{status}  where status = low | high | normal | critical_low | critical_high"
+  },
+
+  "reference_ranges": {
+    "hemoglobin_male":        { "low": 13.0, "high": 17.0, "critical_low": 7.0, "critical_high": 20.0, "unit": "g/dL" },
+    "hemoglobin_female":      { "low": 12.0, "high": 15.5, "critical_low": 7.0, "critical_high": 20.0, "unit": "g/dL" },
+    "hemoglobin":             { "low": 13.0, "high": 17.0, "critical_low": 7.0, "critical_high": 20.0, "unit": "g/dL" },
+    "rbc":                    { "low": 4.5,  "high": 5.5,  "critical_low": 2.5, "critical_high": 7.0,  "unit": "mill/cmm" },
+    "hematocrit":             { "low": 40.0, "high": 50.0, "critical_low": 20.0,"critical_high": 60.0, "unit": "%" },
+    "pcv":                    { "low": 40.0, "high": 50.0, "critical_low": 20.0,"critical_high": 60.0, "unit": "%" },
+    "mcv":                    { "low": 83.0, "high": 101.0,"critical_low": 60.0,"critical_high": 120.0,"unit": "fL" },
+    "mch":                    { "low": 27.0, "high": 32.0, "critical_low": 20.0,"critical_high": 40.0, "unit": "pg" },
+    "mchc":                   { "low": 31.5, "high": 34.5, "critical_low": 28.0,"critical_high": 38.0, "unit": "g/dL" },
+    "rdw":                    { "low": 11.6, "high": 14.6, "critical_low": null, "critical_high": 20.0, "unit": "%" },
+    "wbc":                    { "low": 4000, "high": 11000,"critical_low": 2000, "critical_high": 30000,"unit": "cells/cumm" },
+    "neutrophils_pct":        { "low": 40.0, "high": 70.0, "critical_low": 20.0,"critical_high": 90.0, "unit": "%" },
+    "lymphocytes_pct":        { "low": 20.0, "high": 40.0, "critical_low": 10.0,"critical_high": 60.0, "unit": "%" },
+    "eosinophils_pct":        { "low": 1.0,  "high": 6.0,  "critical_low": null, "critical_high": 20.0, "unit": "%" },
+    "monocytes_pct":          { "low": 2.0,  "high": 10.0, "critical_low": null, "critical_high": 15.0, "unit": "%" },
+    "basophils_pct":          { "low": 0.0,  "high": 2.0,  "critical_low": null, "critical_high": 5.0,  "unit": "%" },
+    "abs_neutrophils":        { "low": 1575, "high": 8800, "critical_low": 500,  "critical_high": 20000,"unit": "/uL" },
+    "abs_lymphocytes":        { "low": 1125, "high": 4950, "critical_low": 500,  "critical_high": 10000,"unit": "/uL" },
+    "abs_eosinophils":        { "low": 20,   "high": 500,  "critical_low": null, "critical_high": 2000, "unit": "/uL" },
+    "abs_monocytes":          { "low": 200,  "high": 1000, "critical_low": null, "critical_high": 3000, "unit": "/uL" },
+    "abs_basophils":          { "low": 0,    "high": 100,  "critical_low": null, "critical_high": 200,  "unit": "/uL" },
+    "platelet_count":         { "low": 150000,"high": 450000,"critical_low":50000,"critical_high":1000000,"unit": "/uL" },
+    "mpv":                    { "low": 6.78, "high": 13.46,"critical_low": null, "critical_high": 15.0, "unit": "fL" },
+    "ipf":                    { "low": 0.0,  "high": 5.0,  "critical_low": null, "critical_high": 10.0, "unit": "%" },
+    "bilirubin_total":        { "low": 0.30, "high": 1.20, "critical_low": null, "critical_high": 15.0, "unit": "mg/dL" },
+    "bilirubin_direct":       { "low": 0.00, "high": 0.30, "critical_low": null, "critical_high": 10.0, "unit": "mg/dL" },
+    "bilirubin_indirect":     { "low": 0.00, "high": 0.70, "critical_low": null, "critical_high": 10.0, "unit": "mg/dL" },
+    "sgot":                   { "low": 0.0,  "high": 46.0, "critical_low": null, "critical_high": 500.0,"unit": "IU/L" },
+    "sgpt":                   { "low": 0.0,  "high": 49.0, "critical_low": null, "critical_high": 500.0,"unit": "IU/L" },
+    "alkaline_phosphatase":   { "low": 42.0, "high": 128.0,"critical_low": null, "critical_high": 1000.0,"unit":"U/L" },
+    "total_protein":          { "low": 6.20, "high": 8.00, "critical_low": 4.0,  "critical_high": 10.0, "unit": "g/dL" },
+    "albumin":                { "low": 3.80, "high": 5.40, "critical_low": 2.0,  "critical_high": 6.0,  "unit": "g/dL" },
+    "globulin":               { "low": 1.50, "high": 3.60, "critical_low": null, "critical_high": 6.0,  "unit": "g/dL" },
+    "ag_ratio":               { "low": 1.0,  "high": 2.0,  "critical_low": 0.5,  "critical_high": null, "unit": "" },
+    "ggt":                    { "low": 11.0, "high": 50.0, "critical_low": null, "critical_high": 500.0,"unit": "IU/L" },
+    "prothrombin_time":       { "low": 10.8, "high": 13.3, "critical_low": null, "critical_high": 30.0, "unit": "seconds" },
+    "inr":                    { "low": 0.8,  "high": 1.3,  "critical_low": null, "critical_high": 4.0,  "unit": "" },
+    "aptt":                   { "low": 26.8, "high": 36.1, "critical_low": null, "critical_high": 60.0, "unit": "seconds" },
+    "serum_creatinine":       { "low": 0.67, "high": 1.17, "critical_low": null, "critical_high": 10.0, "unit": "mg/dL" },
+    "uric_acid":              { "low": 3.5,  "high": 7.2,  "critical_low": null, "critical_high": 12.0, "unit": "mg/dL" },
+    "random_blood_sugar":     { "low": 70.0, "high": 140.0,"critical_low": 40.0, "critical_high": 500.0,"unit": "mg/dL" },
+    "fasting_blood_sugar":    { "low": 70.0, "high": 100.0,"critical_low": 40.0, "critical_high": 400.0,"unit": "mg/dL" }
+  },
+
+  "explanations": {
+
+    "hemoglobin_low": {
+      "technical": "Low hemoglobin (Hb) indicates reduced oxygen-carrying capacity of the blood due to decreased erythrocyte count or deficient hemoglobin content per cell.",
+      "simple": "Your hemoglobin level is below normal. Hemoglobin carries oxygen in your blood. A low level may mean you have anemia — commonly caused by iron deficiency, poor nutrition, blood loss, or chronic illness. You may feel tired, weak, or short of breath.",
+      "possible_causes": ["Iron deficiency anemia", "Vitamin B12 or folate deficiency", "Chronic blood loss (e.g., GI bleeding, heavy periods)", "Chronic kidney disease", "Bone marrow disorders", "Hemolytic conditions"],
+      "action": "Consult your doctor for iron studies, B12, folate levels, and a dietary review."
+    },
+    "hemoglobin_high": {
+      "technical": "Elevated hemoglobin suggests polycythemia, which may be primary (polycythemia vera) or secondary due to hypoxia-driven erythropoietin stimulation.",
+      "simple": "Your hemoglobin is higher than normal. While this sometimes occurs with dehydration, it can also indicate that your body is producing too many red blood cells, possibly due to smoking, lung disease, or a blood disorder.",
+      "possible_causes": ["Dehydration", "Polycythemia vera", "Chronic lung disease / COPD", "High altitude living", "Heavy smoking", "Sleep apnea"],
+      "action": "Stay well hydrated. Consult your doctor if the elevation is persistent."
+    },
+    "hemoglobin_critical_low": {
+      "technical": "Critically low hemoglobin (<7 g/dL) poses severe risk of tissue hypoxia and may require urgent transfusion.",
+      "simple": "Your hemoglobin is critically low. This is a medical emergency. Your organs may not be getting enough oxygen. Immediate medical attention is required.",
+      "possible_causes": ["Severe anemia", "Major internal or external bleeding", "Bone marrow failure"],
+      "action": "Seek emergency medical care immediately."
+    },
+
+    "rbc_low": {
+      "technical": "Low RBC count indicates erythrocytopenia, commonly associated with anemias of various etiologies including nutritional deficiencies, hemolysis, or decreased marrow production.",
+      "simple": "Your red blood cell count is low. Red blood cells carry oxygen throughout your body. A low count is a sign of anemia and may leave you feeling tired and weak.",
+      "possible_causes": ["Iron, B12, or folate deficiency", "Hemolytic anemia", "Bone marrow suppression", "Chronic disease"],
+      "action": "Correlate with hemoglobin, MCV, and iron studies."
+    },
+    "rbc_high": {
+      "technical": "Elevated RBC count (erythrocytosis) may indicate polycythemia or dehydration.",
+      "simple": "Your red blood cell count is above normal. This may be due to dehydration or a condition where the body is making too many red cells.",
+      "possible_causes": ["Dehydration", "Polycythemia vera", "Chronic hypoxia"],
+      "action": "Ensure adequate hydration. Consult your doctor if persistent."
+    },
+
+    "hematocrit_low": {
+      "technical": "Low hematocrit (PCV) reflects reduced red cell mass, consistent with anemia.",
+      "simple": "Your hematocrit (packed cell volume) is low. This means less of your blood volume is made up of red cells, which is a sign of anemia.",
+      "possible_causes": ["Anemia", "Blood loss", "Overhydration"],
+      "action": "Correlate with hemoglobin and RBC count."
+    },
+    "hematocrit_high": {
+      "technical": "Elevated PCV suggests hemoconcentration or polycythemia.",
+      "simple": "Your hematocrit is high. Your blood may be more concentrated than normal, often due to dehydration.",
+      "possible_causes": ["Dehydration", "Polycythemia", "Chronic lung disease"],
+      "action": "Increase fluid intake and consult your doctor."
+    },
+
+    "mcv_low": {
+      "technical": "Microcytosis (low MCV) indicates small red blood cells, typically seen in iron deficiency anemia or thalassemia.",
+      "simple": "Your red blood cells are smaller than normal (microcytic). This is most commonly caused by iron deficiency or a blood condition called thalassemia.",
+      "possible_causes": ["Iron deficiency anemia", "Thalassemia trait", "Anemia of chronic disease", "Sideroblastic anemia"],
+      "action": "Iron studies (serum iron, ferritin, TIBC) and hemoglobin electrophoresis may be required."
+    },
+    "mcv_high": {
+      "technical": "Macrocytosis (high MCV) indicates enlarged red blood cells, most commonly due to B12 or folate deficiency, or liver disease.",
+      "simple": "Your red blood cells are larger than normal (macrocytic). This is often caused by a deficiency of Vitamin B12 or folate, or may be related to liver disease or certain medications.",
+      "possible_causes": ["Vitamin B12 deficiency", "Folate deficiency", "Liver disease / alcohol use", "Hypothyroidism", "Medications (e.g., methotrexate, hydroxyurea)"],
+      "action": "Check Vitamin B12 and folate levels. Review alcohol intake and medications."
+    },
+    "mcv_normal": {
+      "technical": "Normocytic red cells. Anemia, if present, is normocytic — consider chronic disease, hemolysis, or acute blood loss.",
+      "simple": "Your red blood cell size is normal.",
+      "possible_causes": [],
+      "action": "No action needed for this parameter alone."
+    },
+
+    "mch_low": {
+      "technical": "Low MCH indicates hypochromic red cells, consistent with iron deficiency or thalassemia.",
+      "simple": "Each of your red blood cells contains less hemoglobin than normal. This is often a sign of iron deficiency.",
+      "possible_causes": ["Iron deficiency", "Thalassemia", "Lead poisoning"],
+      "action": "Check iron stores and correlate with MCV."
+    },
+    "mch_high": {
+      "technical": "Elevated MCH is seen in macrocytic anemias (B12/folate deficiency).",
+      "simple": "Each of your red blood cells contains more hemoglobin than normal. This often accompanies large red blood cells and B12 or folate deficiency.",
+      "possible_causes": ["Vitamin B12 deficiency", "Folate deficiency", "Liver disease"],
+      "action": "Check B12 and folate levels."
+    },
+
+    "mchc_low": {
+      "technical": "Low MCHC (hypochromia) indicates decreased hemoglobin concentration per cell, characteristic of iron deficiency or thalassemia.",
+      "simple": "The concentration of hemoglobin in your red blood cells is lower than normal. This is a classic sign of iron deficiency anemia.",
+      "possible_causes": ["Iron deficiency anemia", "Thalassemia"],
+      "action": "Iron panel and dietary iron review recommended."
+    },
+    "mchc_high": {
+      "technical": "Elevated MCHC is seen in hereditary spherocytosis or severe dehydration.",
+      "simple": "The concentration of hemoglobin inside your red blood cells is higher than normal. This is rare and may indicate a condition called hereditary spherocytosis.",
+      "possible_causes": ["Hereditary spherocytosis", "Severe dehydration", "Homozygous sickle cell disease"],
+      "action": "Peripheral blood smear and further evaluation recommended."
+    },
+
+    "rdw_high": {
+      "technical": "Elevated RDW indicates anisocytosis — variation in red cell size, seen in iron deficiency, B12/folate deficiency, or mixed anemias.",
+      "simple": "Your red blood cells vary a lot in size, which is not normal. This is called anisocytosis and can be a sign of iron, B12, or folate deficiency.",
+      "possible_causes": ["Iron deficiency", "B12 or folate deficiency", "Mixed deficiency anemia", "Myelodysplastic syndrome"],
+      "action": "Correlate with MCV, iron studies, and B12/folate levels."
+    },
+    "rdw_low": {
+      "technical": "Low RDW is rarely clinically significant but may be seen in some thalassemia carriers.",
+      "simple": "Your red blood cells are very uniform in size. This is generally not a concern.",
+      "possible_causes": ["Thalassemia trait (minor)"],
+      "action": "Usually no action required."
+    },
+
+    "wbc_low": {
+      "technical": "Leukopenia (<4000 cells/cumm) may result from viral infections, bone marrow suppression, autoimmune disorders, or medications.",
+      "simple": "Your white blood cell count is below normal. White blood cells fight infection. A low count can make you more vulnerable to infections. It may be caused by viral illness, certain medications, or less commonly a blood disorder.",
+      "possible_causes": ["Viral infections (dengue, HIV)", "Bone marrow suppression", "Autoimmune disease (SLE)", "Chemotherapy / radiation", "Nutritional deficiencies (B12, folate)"],
+      "action": "Repeat CBC, check for medication side effects, consult doctor."
+    },
+    "wbc_high": {
+      "technical": "Leukocytosis (>11000 cells/cumm) commonly occurs in bacterial infections, inflammation, stress responses, or hematological malignancies.",
+      "simple": "Your white blood cell count is above normal. This usually means your body is fighting an infection or inflammation. In rare cases it can indicate a blood disorder.",
+      "possible_causes": ["Bacterial infection", "Inflammation / tissue injury", "Stress response (physical/emotional)", "Corticosteroid use", "Leukemia (if very high)", "Post-splenectomy"],
+      "action": "Correlate with differential count, clinical symptoms, and CRP/ESR."
+    },
+    "wbc_critical_high": {
+      "technical": "WBC >30,000 may indicate leukemoid reaction or leukemia and warrants urgent evaluation.",
+      "simple": "Your white blood cell count is critically high. This requires urgent medical evaluation to rule out serious infection or a blood cancer.",
+      "possible_causes": ["Severe infection/sepsis", "Leukemia", "Leukemoid reaction"],
+      "action": "Seek immediate medical attention."
+    },
+
+    "neutrophils_pct_high": {
+      "technical": "Neutrophilia suggests bacterial infection, acute inflammation, stress response, or corticosteroid use.",
+      "simple": "Your neutrophil percentage is above normal. Neutrophils are the primary white cells that fight bacteria. A high level commonly indicates a bacterial infection or inflammation.",
+      "possible_causes": ["Bacterial infection", "Acute inflammation", "Steroid use", "Physical/emotional stress", "Tissue injury or surgery"],
+      "action": "Correlate with clinical features and CRP."
+    },
+    "neutrophils_pct_low": {
+      "technical": "Neutropenia increases susceptibility to bacterial and fungal infections.",
+      "simple": "Your neutrophil percentage is below normal. This means your infection-fighting capacity is reduced, making you more prone to bacterial infections.",
+      "possible_causes": ["Viral infection", "Autoimmune neutropenia", "Bone marrow suppression", "Certain medications"],
+      "action": "Consult a doctor promptly, especially if you have fever."
+    },
+
+    "lymphocytes_pct_high": {
+      "technical": "Lymphocytosis occurs in viral infections (EBV, CMV, viral hepatitis), pertussis, chronic lymphocytic leukemia (CLL), or as a reactive response.",
+      "simple": "Your lymphocyte percentage is above normal. Lymphocytes fight viruses and other pathogens. A high count is common during or after a viral infection.",
+      "possible_causes": ["Viral infections (EBV, CMV, flu)", "Pertussis (whooping cough)", "CLL or lymphoma", "Post-viral reactive lymphocytosis"],
+      "action": "Correlate with clinical history. Peripheral smear if needed."
+    },
+    "lymphocytes_pct_low": {
+      "technical": "Lymphocytopenia may indicate immunosuppression, HIV infection, severe illness, or steroid use.",
+      "simple": "Your lymphocyte percentage is below normal. Lymphocytes are important for your immune defence. A low count can indicate immune system weakness, a viral illness, or use of certain medications.",
+      "possible_causes": ["HIV/AIDS", "Severe systemic illness", "Immunosuppressive therapy", "Steroid use", "Bone marrow failure"],
+      "action": "Consult a doctor for immune evaluation if persistent."
+    },
+
+    "eosinophils_pct_high": {
+      "technical": "Eosinophilia is commonly caused by allergic conditions, parasitic infections, or rarely eosinophilic disorders.",
+      "simple": "Your eosinophil percentage is above normal. This cell type rises with allergies, asthma, or parasitic infections. It may also rise with certain skin conditions.",
+      "possible_causes": ["Allergic conditions (asthma, eczema, hay fever)", "Parasitic infections (roundworm, hookworm)", "Drug reactions", "Eosinophilic esophagitis", "Addison's disease"],
+      "action": "Check for allergy history and parasitic exposure."
+    },
+    "eosinophils_pct_low": {
+      "technical": "Low eosinophil count is seen in acute bacterial infections, Cushing's syndrome, or steroid use — generally not clinically significant.",
+      "simple": "Your eosinophil count is slightly low. This is usually not a concern and can be caused by stress, steroid medications, or active infection.",
+      "possible_causes": ["Acute bacterial infection", "Steroid therapy", "Cushing's syndrome"],
+      "action": "Usually no specific action needed."
+    },
+
+    "monocytes_pct_high": {
+      "technical": "Monocytosis occurs in chronic infections (TB, malaria, SBE), inflammatory diseases, or monocytic leukemia.",
+      "simple": "Your monocyte percentage is above normal. Monocytes fight chronic infections and inflammation. A slight rise may occur with infections like tuberculosis or inflammatory conditions.",
+      "possible_causes": ["Tuberculosis", "Malaria", "Inflammatory bowel disease", "Chronic infection", "Monocytic leukemia"],
+      "action": "Correlate with clinical history and other investigations."
+    },
+    "monocytes_pct_low": {
+      "technical": "Low monocytes can be seen in bone marrow failure or steroid therapy.",
+      "simple": "Your monocyte level is slightly low. This is generally not clinically significant on its own.",
+      "possible_causes": ["Bone marrow suppression", "Steroid use", "Hairy cell leukemia"],
+      "action": "Usually no specific action needed."
+    },
+
+    "basophils_pct_high": {
+      "technical": "Basophilia may indicate chronic myeloid leukemia (CML), hypothyroidism, or allergic/inflammatory states.",
+      "simple": "Your basophil count is above normal. Although basophils are few in number, a persistent rise warrants evaluation for rare blood disorders.",
+      "possible_causes": ["Chronic myeloid leukemia (CML)", "Hypothyroidism", "Allergic reactions", "Myeloproliferative disorders"],
+      "action": "Consult doctor for evaluation if persistently elevated."
+    },
+
+    "abs_neutrophils_low": {
+      "technical": "Absolute neutrophil count (ANC) <1575/uL signifies neutropenia, increasing infection risk.",
+      "simple": "Your actual neutrophil count is low. This lowers your body's ability to fight bacterial infections. Moderate to severe cases need medical attention.",
+      "possible_causes": ["Viral illness", "Chemotherapy", "Bone marrow failure", "Autoimmune conditions"],
+      "action": "Consult doctor. Avoid exposure to sick individuals."
+    },
+    "abs_neutrophils_high": {
+      "technical": "Elevated ANC points to bacterial infection, physiological stress, or steroid effect.",
+      "simple": "You have more neutrophils than normal. This usually indicates your body is actively fighting a bacterial infection or inflammation.",
+      "possible_causes": ["Bacterial infection", "Inflammation", "Stress", "Steroid use"],
+      "action": "Correlate with symptoms and CRP/ESR."
+    },
+
+    "abs_lymphocytes_low": {
+      "technical": "Low absolute lymphocyte count suggests immunosuppression or active severe illness.",
+      "simple": "Your lymphocyte count is low. This may mean your immune defence is weakened, possibly due to a viral illness, medications, or stress on the body.",
+      "possible_causes": ["HIV", "Severe infection", "Steroid therapy", "Post-chemotherapy"],
+      "action": "Seek medical evaluation if persistent or accompanied by other symptoms."
+    },
+    "abs_lymphocytes_high": {
+      "technical": "Lymphocytosis from viral infection, CLL, or lymphoma.",
+      "simple": "Your lymphocyte count is above normal. This is commonly seen in viral infections. Persistent elevation needs further investigation.",
+      "possible_causes": ["Viral infection", "CLL", "Lymphoma"],
+      "action": "Peripheral smear if counts are very high or accompanied by symptoms."
+    },
+
+    "abs_eosinophils_high": {
+      "technical": "Elevated AEC suggests allergy, parasitic infection, or eosinophilic organ involvement.",
+      "simple": "Your eosinophil count is above normal. This is often caused by allergies or parasitic infections. Consult your doctor if you have unexplained itching, rash, or respiratory symptoms.",
+      "possible_causes": ["Parasitic infections", "Allergic diseases", "Drug reactions", "Eosinophilic disorders"],
+      "action": "Check for parasitic infections, allergy panel, and medication history."
+    },
+    "abs_eosinophils_low": {
+      "technical": "Low AEC is not typically significant.",
+      "simple": "Your eosinophil count is low. This is usually not a medical concern.",
+      "possible_causes": ["Steroid therapy", "Acute infection"],
+      "action": "No specific action needed."
+    },
+
+    "abs_monocytes_high": {
+      "technical": "Elevated absolute monocyte count indicates chronic infection or inflammatory process.",
+      "simple": "Your monocyte count is above normal. This can signal a long-standing infection or inflammatory condition.",
+      "possible_causes": ["TB", "Sarcoidosis", "IBD", "Chronic infection"],
+      "action": "Correlate with clinical findings."
+    },
+    "abs_monocytes_low": {
+      "technical": "Low absolute monocytes are rarely clinically significant.",
+      "simple": "Your monocyte count is slightly low. This is usually not a concern.",
+      "possible_causes": ["Steroid use", "Aplastic anemia"],
+      "action": "Usually no action needed."
+    },
+
+    "abs_basophils_low": {
+      "technical": "Low absolute basophil count is not clinically significant in most contexts.",
+      "simple": "Your basophil count is very low. This is generally not a concern by itself.",
+      "possible_causes": ["Steroid use", "Stress response"],
+      "action": "No specific action needed."
+    },
+    "abs_basophils_high": {
+      "technical": "Basophilia requires evaluation for myeloproliferative neoplasm or CML.",
+      "simple": "Your basophil count is above normal. While unusual, this may need further evaluation for blood disorders.",
+      "possible_causes": ["CML", "Myeloproliferative disorder"],
+      "action": "Consult a hematologist."
+    },
+
+    "platelet_count_low": {
+      "technical": "Thrombocytopenia (<150,000/uL) increases bleeding risk; etiologies include immune thrombocytopenia (ITP), dengue, bone marrow failure, or medications.",
+      "simple": "Your platelet count is below normal. Platelets help your blood clot. A low count increases your risk of bruising and bleeding. It may be caused by viral infections (like dengue), medications, or an immune condition.",
+      "possible_causes": ["Dengue fever", "ITP (immune thrombocytopenic purpura)", "Chemotherapy / bone marrow suppression", "Hypersplenism", "Aplastic anemia", "DIC"],
+      "action": "Avoid NSAIDs/blood thinners. Consult doctor urgently if <50,000 or if you notice unusual bleeding."
+    },
+    "platelet_count_high": {
+      "technical": "Thrombocytosis may be reactive (iron deficiency, infection, post-splenectomy) or primary (essential thrombocythemia).",
+      "simple": "Your platelet count is above normal. Often this is a reactive change due to infection, inflammation, or iron deficiency. Very high counts may rarely increase clotting risk.",
+      "possible_causes": ["Iron deficiency anemia", "Infection / inflammation", "Post-splenectomy", "Essential thrombocythemia"],
+      "action": "Correlate with iron studies and clinical context."
+    },
+    "platelet_count_critical_low": {
+      "technical": "Platelet count <50,000 poses significant spontaneous bleeding risk. <20,000 may require transfusion.",
+      "simple": "Your platelet count is critically low. You are at high risk of serious bleeding. Seek urgent medical care.",
+      "possible_causes": ["Severe thrombocytopenia", "DIC", "TTP/HUS"],
+      "action": "Seek emergency medical care immediately."
+    },
+
+    "mpv_low": {
+      "technical": "Low MPV suggests decreased platelet production (hypoproliferative thrombocytopenia) from bone marrow suppression.",
+      "simple": "Your platelets are smaller than normal on average. This may indicate your bone marrow is producing fewer platelets.",
+      "possible_causes": ["Aplastic anemia", "Chemotherapy", "Bone marrow disease"],
+      "action": "Correlate with platelet count and clinical history."
+    },
+    "mpv_high": {
+      "technical": "Elevated MPV indicates large, metabolically active platelets, seen in ITP, myeloproliferative disorders, or early platelet regeneration.",
+      "simple": "Your platelets are larger than normal on average. Larger platelets are often more active. This can be seen in immune platelet destruction (ITP) or recovery from platelet loss.",
+      "possible_causes": ["ITP", "Myeloproliferative disorders", "Platelet regeneration after destruction", "Hypothyroidism"],
+      "action": "Correlate with platelet count and clinical context."
+    },
+
+    "ipf_high": {
+      "technical": "Elevated immature platelet fraction reflects increased thrombopoiesis in response to peripheral platelet consumption.",
+      "simple": "Your blood has more immature platelets than normal. This usually means your bone marrow is working harder to replace platelets that are being destroyed or used up.",
+      "possible_causes": ["ITP", "Dengue fever", "Active platelet consumption", "TTP/HUS"],
+      "action": "Correlate with platelet count and clinical symptoms."
+    },
+
+    "bilirubin_total_high": {
+      "technical": "Hyperbilirubinemia results from increased production (hemolysis), decreased hepatic conjugation, impaired excretion (cholestasis), or obstruction.",
+      "simple": "Your total bilirubin is above normal. Bilirubin is a breakdown product of red blood cells processed by the liver. High levels can cause yellowing of skin or eyes (jaundice) and may indicate liver problems or bile duct blockage.",
+      "possible_causes": ["Liver disease (hepatitis, cirrhosis)", "Bile duct obstruction (stones, stricture)", "Hemolytic anemia", "Gilbert's syndrome"],
+      "action": "Correlate with direct/indirect bilirubin, liver enzymes, and imaging."
+    },
+    "bilirubin_total_critical_high": {
+      "technical": "Critically high bilirubin requires urgent evaluation for acute liver failure or complete biliary obstruction.",
+      "simple": "Your bilirubin is critically high. This requires urgent medical evaluation for serious liver or bile duct problems.",
+      "possible_causes": ["Acute liver failure", "Complete biliary obstruction", "Severe hemolysis"],
+      "action": "Seek immediate medical care."
+    },
+
+    "bilirubin_direct_high": {
+      "technical": "Elevated direct (conjugated) bilirubin indicates hepatocellular disease or cholestasis.",
+      "simple": "Your direct bilirubin is high. This is the type processed by the liver. High levels suggest your liver or bile ducts may not be working properly.",
+      "possible_causes": ["Hepatitis", "Cholestasis", "Biliary obstruction", "Primary biliary cholangitis"],
+      "action": "Liver function test panel, ultrasound abdomen recommended."
+    },
+    "bilirubin_indirect_high": {
+      "technical": "Elevated unconjugated (indirect) bilirubin suggests pre-hepatic causes such as hemolysis or Gilbert's syndrome.",
+      "simple": "Your indirect bilirubin is high. This is the unconjugated form. An elevation usually means red blood cells are being broken down faster than normal, or you may have Gilbert's syndrome (a benign condition).",
+      "possible_causes": ["Hemolytic anemia", "Gilbert's syndrome", "Ineffective erythropoiesis", "Blood transfusion reactions"],
+      "action": "Check for hemolysis (LDH, reticulocyte count, peripheral smear)."
+    },
+
+    "sgot_high": {
+      "technical": "Elevated AST/SGOT indicates hepatocellular injury, myocardial infarction, rhabdomyolysis, or hemolysis.",
+      "simple": "Your SGOT (AST) liver enzyme is above normal. This enzyme is found mainly in the liver and heart. A rise indicates some damage to liver cells or muscle tissue.",
+      "possible_causes": ["Liver disease (hepatitis, fatty liver, cirrhosis)", "Heart attack (myocardial infarction)", "Muscle injury / rhabdomyolysis", "Medications (statins, paracetamol overdose)", "Alcohol use"],
+      "action": "Correlate with SGPT, ALP, and clinical history."
+    },
+
+    "sgpt_high": {
+      "technical": "Elevated ALT/SGPT is more specific to hepatocellular injury than AST.",
+      "simple": "Your SGPT (ALT) liver enzyme is above normal. This is a more specific marker of liver cell damage. An elevated level suggests your liver cells are stressed or injured.",
+      "possible_causes": ["Viral hepatitis (A, B, C)", "Non-alcoholic fatty liver disease (NAFLD)", "Alcohol-induced liver disease", "Drug-induced liver injury", "Autoimmune hepatitis"],
+      "action": "Viral hepatitis panel, liver ultrasound, and medication review recommended."
+    },
+
+    "alkaline_phosphatase_high": {
+      "technical": "Elevated ALP suggests cholestatic liver disease, bile duct obstruction, bone disease (Paget's, metastases), or hyperparathyroidism.",
+      "simple": "Your alkaline phosphatase is above normal. This enzyme is found in the liver and bones. A high level may indicate a liver or bone condition — most commonly bile duct problems or bone disease.",
+      "possible_causes": ["Cholestasis / bile duct obstruction", "Primary biliary cholangitis", "Bone disorders (Paget's disease, fractures, bone metastases)", "Hyperparathyroidism", "Liver tumors"],
+      "action": "Fractionation (liver vs bone ALP), GGT, and imaging recommended."
+    },
+    "alkaline_phosphatase_low": {
+      "technical": "Low ALP can occur in hypothyroidism, zinc deficiency, or pernicious anemia.",
+      "simple": "Your alkaline phosphatase is slightly low. This is less commonly significant but may be related to hypothyroidism or nutritional deficiency.",
+      "possible_causes": ["Hypothyroidism", "Zinc deficiency", "Pernicious anemia", "Cardiac bypass surgery"],
+      "action": "Usually not clinically urgent. Thyroid function check if symptomatic."
+    },
+
+    "total_protein_low": {
+      "technical": "Hypoproteinemia reflects malnutrition, protein-losing enteropathy, liver failure, or nephrotic syndrome.",
+      "simple": "Your total protein level is below normal. Proteins are essential building blocks. Low levels may indicate poor nutrition, liver disease, or protein being lost through the kidneys or gut.",
+      "possible_causes": ["Malnutrition / poor dietary intake", "Liver disease (cirrhosis)", "Nephrotic syndrome", "Protein-losing enteropathy", "Severe burns"],
+      "action": "Evaluate nutritional status, kidney function (urine protein), and liver function."
+    },
+    "total_protein_high": {
+      "technical": "Hyperproteinemia may indicate dehydration or paraproteinemias (myeloma, Waldenström's).",
+      "simple": "Your total protein is above normal. This can occur with dehydration or, rarely, with conditions where abnormal proteins are produced in excess.",
+      "possible_causes": ["Dehydration", "Multiple myeloma", "Chronic infection or inflammation", "Waldenström's macroglobulinemia"],
+      "action": "Serum protein electrophoresis (SPEP) if clinically indicated."
+    },
+
+    "albumin_low": {
+      "technical": "Hypoalbuminemia is a marker of liver synthetic failure, malnutrition, nephrotic syndrome, or chronic inflammation.",
+      "simple": "Your albumin level is below normal. Albumin is the main protein in your blood, made by the liver. A low level can indicate liver disease, kidney issues, or poor nutrition. It can also cause fluid to accumulate in the body.",
+      "possible_causes": ["Liver cirrhosis or failure", "Nephrotic syndrome", "Malnutrition", "Chronic inflammation / infection", "Protein-losing enteropathy"],
+      "action": "Evaluate liver function, urine protein, and nutritional intake."
+    },
+    "albumin_high": {
+      "technical": "Hyperalbuminemia is almost always due to dehydration.",
+      "simple": "Your albumin is slightly high. This is almost always caused by dehydration. Ensure adequate fluid intake.",
+      "possible_causes": ["Dehydration"],
+      "action": "Increase fluid intake."
+    },
+
+    "globulin_high": {
+      "technical": "Elevated globulins may indicate chronic infection, autoimmune disease, or paraproteinemia.",
+      "simple": "Your globulin level is above normal. Globulins include immune proteins. A high level may suggest chronic infection, liver disease, or an immune system abnormality.",
+      "possible_causes": ["Chronic infection (HIV, TB, hepatitis)", "Autoimmune disease (SLE, rheumatoid arthritis)", "Multiple myeloma", "Liver disease"],
+      "action": "SPEP, immunoglobulin levels, and autoimmune workup if indicated."
+    },
+    "globulin_low": {
+      "technical": "Low globulins suggest immunodeficiency or protein malnutrition.",
+      "simple": "Your globulin level is slightly low. This may indicate a weakened immune system or low protein intake.",
+      "possible_causes": ["Immunodeficiency", "Malnutrition", "Nephrotic syndrome"],
+      "action": "Immunoglobulin levels if recurrent infections are present."
+    },
+
+    "ag_ratio_low": {
+      "technical": "A low A/G ratio (<1.0) suggests liver disease, nephrotic syndrome, or myeloma with elevated globulins.",
+      "simple": "Your albumin-to-globulin ratio is below normal. This can indicate liver disease, kidney problems, or conditions where immune proteins are overproduced.",
+      "possible_causes": ["Liver cirrhosis", "Nephrotic syndrome", "Multiple myeloma", "Chronic inflammation"],
+      "action": "Correlate with albumin, globulin, LFT, and RFT."
+    },
+
+    "ggt_high": {
+      "technical": "Elevated GGT is a sensitive marker of hepatobiliary disease and alcohol use. It rises with cholestasis, fatty liver, and enzyme-inducing drugs.",
+      "simple": "Your GGT (gamma-GT) enzyme is above normal. GGT is a sensitive liver enzyme that rises with alcohol use, fatty liver disease, bile duct problems, or certain medications.",
+      "possible_causes": ["Alcohol consumption", "Non-alcoholic fatty liver disease", "Biliary obstruction / cholestasis", "Drug-induced (e.g., phenytoin, carbamazepine)", "Hepatitis"],
+      "action": "Review alcohol intake, medications, and correlate with other liver tests."
+    },
+
+    "prothrombin_time_high": {
+      "technical": "Prolonged PT indicates deficiency of extrinsic pathway factors (VII, X, V, II, fibrinogen) due to liver disease, Vitamin K deficiency, or anticoagulant use.",
+      "simple": "Your blood is taking longer than normal to clot (prolonged PT). This can be due to liver disease, low Vitamin K, or blood-thinning medication. It increases bleeding risk.",
+      "possible_causes": ["Liver disease (cirrhosis, acute hepatitis)", "Vitamin K deficiency", "Warfarin / anticoagulant therapy", "DIC (disseminated intravascular coagulation)", "Factor deficiency"],
+      "action": "Correlate with INR, liver function tests, and medication review."
+    },
+
+    "inr_high": {
+      "technical": "Elevated INR indicates prolonged clotting, reflective of anticoagulation effect or coagulation factor deficiency.",
+      "simple": "Your INR is above normal. This means your blood clots more slowly than usual. If you are on a blood-thinning medication (like warfarin), this is an expected finding, but needs monitoring. If not on anticoagulants, it may indicate liver disease.",
+      "possible_causes": ["Warfarin therapy", "Liver disease", "Vitamin K deficiency", "DIC"],
+      "action": "If on warfarin — dose adjustment. If not — urgent liver and coagulation evaluation."
+    },
+
+    "aptt_high": {
+      "technical": "Prolonged APTT indicates intrinsic/common pathway factor deficiency, heparin therapy, lupus anticoagulant, or DIC.",
+      "simple": "Your APTT is above normal. This tests another aspect of blood clotting. A prolonged result may indicate certain clotting factor deficiencies, heparin use, or conditions like lupus affecting clotting.",
+      "possible_causes": ["Hemophilia A or B (Factor VIII/IX deficiency)", "Heparin therapy", "Lupus anticoagulant", "DIC", "Liver disease"],
+      "action": "Correlate with PT/INR, clinical history, and medication review."
+    },
+    "aptt_low": {
+      "technical": "Shortened APTT may suggest hypercoagulable state or acute thrombosis.",
+      "simple": "Your APTT is slightly below normal. This is usually not clinically significant but in some contexts may indicate a tendency for excessive clotting.",
+      "possible_causes": ["Hypercoagulable state", "Acute phase reaction"],
+      "action": "Correlate clinically."
+    },
+
+    "serum_creatinine_high": {
+      "technical": "Elevated creatinine indicates reduced glomerular filtration (AKI or CKD), dehydration, or rhabdomyolysis.",
+      "simple": "Your creatinine level is above normal. Creatinine is a waste product filtered by your kidneys. High levels indicate the kidneys are not filtering as well as they should — this can be due to dehydration, kidney injury, or kidney disease.",
+      "possible_causes": ["Acute kidney injury (AKI)", "Chronic kidney disease (CKD)", "Dehydration", "Rhabdomyolysis", "Urinary tract obstruction", "Diabetes or hypertension complications"],
+      "action": "Increase fluid intake, check BUN, eGFR, urine routine. Consult nephrologist if persistent."
+    },
+    "serum_creatinine_low": {
+      "technical": "Low creatinine may reflect reduced muscle mass (sarcopenia, cachexia) or pregnancy.",
+      "simple": "Your creatinine is slightly below normal. This is usually not concerning and is seen with low muscle mass or in pregnancy.",
+      "possible_causes": ["Low muscle mass", "Malnutrition", "Pregnancy"],
+      "action": "Usually no specific action needed."
+    },
+
+    "uric_acid_high": {
+      "technical": "Hyperuricemia may lead to gout (urate crystal deposition), nephrolithiasis, or urate nephropathy. Causes include increased purine intake, decreased renal excretion, or cell turnover.",
+      "simple": "Your uric acid level is above normal. High uric acid can cause gout — a painful joint condition — and may also affect your kidneys over time. It is often related to diet (red meat, seafood, alcohol) or reduced kidney excretion.",
+      "possible_causes": ["High purine diet (red meat, organ meat, seafood)", "Alcohol consumption", "Obesity", "Diuretic use", "Kidney disease", "Leukemia or lymphoma (high cell turnover)"],
+      "action": "Reduce purine-rich foods and alcohol. Stay well hydrated. Consult doctor for medication if gout symptoms present."
+    },
+    "uric_acid_low": {
+      "technical": "Low uric acid can be seen in severe hepatocellular disease, Fanconi syndrome, or xanthine oxidase deficiency.",
+      "simple": "Your uric acid is below normal. This is rarely a concern but can sometimes indicate liver disease or a rare enzyme disorder.",
+      "possible_causes": ["Severe liver disease", "Fanconi syndrome", "Allopurinol or uricosuric drug use"],
+      "action": "Usually not clinically significant. Correlate if liver disease suspected."
+    },
+
+    "random_blood_sugar_high": {
+      "technical": "RBS >140 mg/dL warrants evaluation for diabetes mellitus or impaired glucose tolerance. Diagnosis requires fasting glucose or HbA1c confirmation.",
+      "simple": "Your random blood sugar is above normal. A single high reading does not confirm diabetes, but it suggests your blood sugar may need monitoring. You may need a fasting blood sugar or HbA1c test to confirm.",
+      "possible_causes": ["Type 2 diabetes mellitus", "Pre-diabetes / impaired glucose tolerance", "Stress hyperglycemia", "Steroid use", "Pancreatitis"],
+      "action": "Fasting blood glucose and HbA1c recommended. Lifestyle modification (diet, exercise)."
+    },
+    "random_blood_sugar_low": {
+      "technical": "Hypoglycemia (<70 mg/dL) may result from insulin excess, sulfonylurea use, fasting, or insulinoma.",
+      "simple": "Your blood sugar is below normal (low blood sugar / hypoglycemia). This can cause dizziness, sweating, confusion, and weakness. It is commonly caused by too much insulin medication, skipping meals, or excess alcohol.",
+      "possible_causes": ["Insulin overdose", "Sulfonylurea medication", "Prolonged fasting", "Alcohol use", "Insulinoma"],
+      "action": "Eat or drink something with sugar immediately. Consult doctor about medication adjustment."
+    },
+    "random_blood_sugar_critical_low": {
+      "technical": "Critically low blood glucose (<40 mg/dL) is a medical emergency with risk of seizures and coma.",
+      "simple": "Your blood sugar is critically low. This is a medical emergency. Eat sugar immediately and seek emergency care.",
+      "possible_causes": ["Insulin overdose", "Severe fasting", "Sepsis"],
+      "action": "Emergency treatment required. Administer glucose immediately."
+    },
+    "random_blood_sugar_critical_high": {
+      "technical": "Blood glucose >500 mg/dL suggests DKA or hyperosmolar hyperglycemic state, requiring urgent management.",
+      "simple": "Your blood sugar is critically high. This is a medical emergency. Seek immediate medical care.",
+      "possible_causes": ["DKA (Diabetic Ketoacidosis)", "HHS (Hyperosmolar Hyperglycemic State)"],
+      "action": "Seek emergency medical care immediately."
+    },
+
+    "fasting_blood_sugar_high": {
+      "technical": "FBS 100–125 mg/dL indicates pre-diabetes; >126 mg/dL on two occasions confirms diabetes mellitus.",
+      "simple": "Your fasting blood sugar is above normal. Levels between 100–125 suggest pre-diabetes. Levels above 126 may indicate diabetes. Lifestyle changes and follow-up testing are important.",
+      "possible_causes": ["Type 2 diabetes mellitus", "Pre-diabetes", "Steroid use", "Cushing's syndrome"],
+      "action": "HbA1c, dietary changes, exercise, and doctor consultation."
+    },
+
+    "default_low": {
+      "technical": "Value is below the biological reference interval.",
+      "simple": "This value is below the normal range. Please consult your doctor for interpretation in the context of your overall health.",
+      "possible_causes": ["Various — context dependent"],
+      "action": "Consult your doctor."
+    },
+    "default_high": {
+      "technical": "Value is above the biological reference interval.",
+      "simple": "This value is above the normal range. Please consult your doctor for interpretation in the context of your overall health.",
+      "possible_causes": ["Various — context dependent"],
+      "action": "Consult your doctor."
+    },
+    "default_normal": {
+      "technical": "Value is within the biological reference interval.",
+      "simple": "This value is within the normal range.",
+      "possible_causes": [],
+      "action": "No specific action required."
+    }
+  },
+
+  "test_name_aliases": {
+    "hb": "hemoglobin",
+    "haemoglobin": "hemoglobin",
+    "haemoglobin (hb)": "hemoglobin",
+    "rbc count": "rbc",
+    "total rbc count": "rbc",
+    "r.b.c. count": "rbc",
+    "pcv": "hematocrit",
+    "hct": "hematocrit",
+    "haematocrit": "hematocrit",
+    "packed cell volume": "hematocrit",
+    "packed cell volume (hct)": "hematocrit",
+    "mean corpuscular volume": "mcv",
+    "mean cell volume": "mcv",
+    "mean corpuscular hb": "mch",
+    "mean cell hemoglobin": "mch",
+    "mean corpuscular hb conc": "mchc",
+    "mean cell hb conc": "mchc",
+    "mchc": "mchc",
+    "red cell distribution width": "rdw",
+    "r.d.w.": "rdw",
+    "rdw-cv": "rdw",
+    "total wbc count": "wbc",
+    "total wbc": "wbc",
+    "total leucocyte count": "wbc",
+    "tlc": "wbc",
+    "wbc count": "wbc",
+    "white blood cell count": "wbc",
+    "neutrophils %": "neutrophils_pct",
+    "neutrophil": "neutrophils_pct",
+    "neutrophils": "neutrophils_pct",
+    "lymphocytes %": "lymphocytes_pct",
+    "lymphocyte": "lymphocytes_pct",
+    "lymphocytes": "lymphocytes_pct",
+    "eosinophils %": "eosinophils_pct",
+    "eosinophil": "eosinophils_pct",
+    "eosinophils": "eosinophils_pct",
+    "monocytes %": "monocytes_pct",
+    "monocyte": "monocytes_pct",
+    "monocytes": "monocytes_pct",
+    "basophils %": "basophils_pct",
+    "basophil": "basophils_pct",
+    "basophils": "basophils_pct",
+    "neutrophils (abs)": "abs_neutrophils",
+    "absolute neutrophils count": "abs_neutrophils",
+    "absolute neutrophil count": "abs_neutrophils",
+    "abs neutrophil": "abs_neutrophils",
+    "lymphocytes (abs)": "abs_lymphocytes",
+    "absolute lymphocytes count": "abs_lymphocytes",
+    "abs lymphocyte": "abs_lymphocytes",
+    "eosinophils (abs)": "abs_eosinophils",
+    "absolute eosinophils count": "abs_eosinophils",
+    "absolute eosinophil count aec": "abs_eosinophils",
+    "aec": "abs_eosinophils",
+    "monocytes (abs)": "abs_monocytes",
+    "absolute monocytes count": "abs_monocytes",
+    "abs monocyte": "abs_monocytes",
+    "basophils (abs)": "abs_basophils",
+    "absolute basophils count": "abs_basophils",
+    "abs basophil": "abs_basophils",
+    "platelet": "platelet_count",
+    "platelets": "platelet_count",
+    "plt": "platelet_count",
+    "platelet count": "platelet_count",
+    "thrombocyte count": "platelet_count",
+    "mean platelet volume": "mpv",
+    "immature platelet fraction": "ipf",
+    "ipf": "ipf",
+    "bilirubin total": "bilirubin_total",
+    "total bilirubin": "bilirubin_total",
+    "serum bilirubin total": "bilirubin_total",
+    "conjugated bilirubin": "bilirubin_direct",
+    "direct bilirubin": "bilirubin_direct",
+    "d. bilirubin": "bilirubin_direct",
+    "bilirubin direct": "bilirubin_direct",
+    "unconjugated bilirubin": "bilirubin_indirect",
+    "indirect bilirubin": "bilirubin_indirect",
+    "i.d. bilirubin": "bilirubin_indirect",
+    "bilirubin indirect": "bilirubin_indirect",
+    "sgot": "sgot",
+    "ast": "sgot",
+    "serum sgot": "sgot",
+    "sgpt": "sgpt",
+    "alt": "sgpt",
+    "serum sgpt": "sgpt",
+    "alp": "alkaline_phosphatase",
+    "alkaline phosphatase": "alkaline_phosphatase",
+    "serum alkaline phosphatase": "alkaline_phosphatase",
+    "total protein": "total_protein",
+    "serum total protein": "total_protein",
+    "albumin": "albumin",
+    "serum albumin": "albumin",
+    "globulin": "globulin",
+    "serum globulin": "globulin",
+    "a/g ratio": "ag_ratio",
+    "albumin globulin ratio": "ag_ratio",
+    "ggt": "ggt",
+    "gammat-gt": "ggt",
+    "gamma gt": "ggt",
+    "gamma-gt": "ggt",
+    "ggtp": "ggt",
+    "pt": "prothrombin_time",
+    "prothrombin time": "prothrombin_time",
+    "pt with inr": "prothrombin_time",
+    "inr": "inr",
+    "international normalised ratio": "inr",
+    "aptt": "aptt",
+    "aptt test": "aptt",
+    "activated partial thromboplastin time": "aptt",
+    "creatinine": "serum_creatinine",
+    "serum creatinine": "serum_creatinine",
+    "s. creatinine": "serum_creatinine",
+    "uric acid": "uric_acid",
+    "serum uric acid": "uric_acid",
+    "rbs": "random_blood_sugar",
+    "random blood sugar": "random_blood_sugar",
+    "random blood glucose": "random_blood_sugar",
+    "rbs (random blood sugar)": "random_blood_sugar",
+    "fbs": "fasting_blood_sugar",
+    "fasting blood sugar": "fasting_blood_sugar",
+    "fasting blood glucose": "fasting_blood_sugar"
+  }
+}

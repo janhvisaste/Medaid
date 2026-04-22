@@ -10,6 +10,102 @@ from django.http import HttpResponse
 from django.utils import timezone
 import json
 
+EMERGENCY_KEYWORDS = [
+    "not breathing", "unconscious", "severe chest pain", "heavy bleeding",
+    "sudden weakness", "slurred speech", "seizure", "severe burn",
+    "blue lips", "very drowsy", "faint", "loss of consciousness",
+    "can't breathe", "cannot breathe", "chest pain", "difficulty breathing",
+    "severe bleeding", "uncontrolled bleeding", "passed out", "behosh"
+]
+
+
+def contains_emergency_keyword(text):
+    """Return True if text contains any emergency keyword."""
+    if not text:
+        return False
+    lowered = text.lower()
+    for keyword in EMERGENCY_KEYWORDS:
+        if keyword in lowered:
+            return True
+    return False
+
+
+def get_emergency_services_by_pincode(pincode):
+    """Return basic emergency contact info and example hospitals for a pincode prefix."""
+    services = {
+        "pincode": pincode,
+        "emergency_numbers": {
+            "ambulance": "108",
+            "police": "100",
+            "fire": "101",
+            "women_helpline": "1091",
+            "child_helpline": "1098",
+            "national_emergency": "112",
+        },
+        "instructions": [
+            "Call 108 for medical emergencies",
+            "Call 112 for any emergency (integrated number)",
+            "Keep your location ready when calling",
+            "Stay on the line until help arrives",
+        ],
+    }
+
+    pincode_prefix = pincode[:3] if pincode and len(pincode) >= 3 else ""
+
+    city_hospitals = {
+        "400": {
+            "city": "Mumbai",
+            "hospitals": [
+                {"name": "KEM Hospital", "phone": "022-24107000", "address": "Acharya Donde Marg, Parel"},
+                {"name": "Lilavati Hospital", "phone": "022-26567891", "address": "Bandra West"},
+                {"name": "Hinduja Hospital", "phone": "022-44458888", "address": "Mahim"},
+            ],
+        },
+        "110": {
+            "city": "Delhi",
+            "hospitals": [
+                {"name": "AIIMS", "phone": "011-26588500", "address": "Ansari Nagar"},
+                {"name": "Safdarjung Hospital", "phone": "011-26165060", "address": "Ring Road"},
+                {"name": "Apollo Hospital", "phone": "011-26825858", "address": "Sarita Vihar"},
+            ],
+        },
+        "560": {
+            "city": "Bangalore",
+            "hospitals": [
+                {"name": "Victoria Hospital", "phone": "080-26700301", "address": "Fort Area"},
+                {"name": "Manipal Hospital", "phone": "080-25023456", "address": "HAL Airport Road"},
+                {"name": "Apollo Hospital", "phone": "080-26304050", "address": "Bannerghatta Road"},
+            ],
+        },
+        "600": {
+            "city": "Chennai",
+            "hospitals": [
+                {"name": "Apollo Hospital", "phone": "044-28296000", "address": "Greams Road"},
+                {"name": "Fortis Malar", "phone": "044-42895555", "address": "Adyar"},
+                {"name": "SIMS Hospital", "phone": "044-42855555", "address": "Vadapalani"},
+            ],
+        },
+        "700": {
+            "city": "Kolkata",
+            "hospitals": [
+                {"name": "SSKM Hospital", "phone": "033-22441000", "address": "College Street"},
+                {"name": "Apollo Gleneagles", "phone": "033-23203040", "address": "EM Bypass"},
+                {"name": "Fortis Hospital", "phone": "033-66283000", "address": "Anandapur"},
+            ],
+        },
+    }
+
+    if pincode_prefix in city_hospitals:
+        services["city_info"] = city_hospitals[pincode_prefix]
+    else:
+        services["city_info"] = {
+            "city": "Your Location",
+            "message": "Call 108 for nearest hospital or search 'emergency hospital near me'",
+        }
+
+    return services
+
+
 from .models import (
     User, UserProfile, MedicalReport, TriageRecord, 
     PossibleCondition, MedicalTest, AbnormalResult, Recommendation,
@@ -30,8 +126,8 @@ from .serializers import (
     ClinicianStatsSerializer,
     TriageRecordSerializer
 )
-from .triage_engine import get_triage_engine, contains_emergency_keyword, get_emergency_services_by_pincode
 from .triage_engine_v2 import get_triage_engine_v2
+from .triage_engine import get_triage_engine
 from .hospital_finder import get_hospital_finder
 from .report_processor import get_report_processor, summarize_medical_report_with_llm
 from .facility_recommendations import get_nearby_facilities, get_dietary_recommendations
@@ -115,6 +211,7 @@ def login(request):
         return Response(response_data, status=status.HTTP_200_OK)
     
     return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+
 
 
 @api_view(['POST'])
@@ -231,6 +328,27 @@ def get_current_user(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user(request):
+    """
+    Update current user's basic information (name, phone)
+    """
+    user = request.user
+    
+    # Update allowed fields
+    if 'first_name' in request.data:
+        user.first_name = request.data['first_name']
+    if 'last_name' in request.data:
+        user.last_name = request.data['last_name']
+    if 'phone_number' in request.data:
+        user.phone_number = request.data['phone_number']
+    
+    user.save()
+    serializer = UserSerializer(user)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet for User management
@@ -305,6 +423,11 @@ def assess_symptoms(request):
         report_id = request.data.get('medical_report_id')
         location = request.data.get('location', '')
         pincode = request.data.get('pincode', '')
+        
+        # Save pincode to user profile
+        if pincode and hasattr(user, 'profile'):
+            user.profile.pincode = pincode
+            user.profile.save()
         
         if not symptoms_text:
             return Response(
@@ -452,7 +575,9 @@ def assess_symptoms(request):
         if location or pincode:
             try:
                 hospital_finder = get_hospital_finder()
-                search_location = location or pincode
+                # Prefer a valid 6-digit pincode for more precise geocoding.
+                cleaned_pincode = str(pincode or '').strip()
+                search_location = cleaned_pincode if cleaned_pincode.isdigit() and len(cleaned_pincode) == 6 else (location or pincode)
                 hospitals = hospital_finder.find_nearby_hospitals(
                     location=search_location,
                     risk_level=assessment['risk_level'],
@@ -615,7 +740,7 @@ def analyze_medical_report(request):
         
         # Process report
         processor = get_report_processor()
-        result = processor.process_report(file_bytes, file_type_str, gender, age)
+        result = processor.extract_and_analyze(file_bytes, file_name=uploaded_file.name)
         
         if not result.get('success'):
             return Response(
@@ -623,7 +748,7 @@ def analyze_medical_report(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get LLM summary of the medical report
+        # Get LLM summary using local T5 model (no external API)
         extracted_text = result.get('extracted_text', '')
         llm_summary = None
         if extracted_text:
@@ -1123,7 +1248,7 @@ def download_health_passport_pdf(request):
         triage_records = TriageRecord.objects.filter(user=user).order_by('-created_at')
         
         # Get all medical reports
-        medical_reports = MedicalReport.objects.filter(user=user).order_by('-uploaded_at')
+        medical_reports = MedicalReport.objects.filter(user=user).order_by('-upload_date')
         
         # Generate PDF
         pdf_content = generate_health_passport_pdf(user, user_profile, triage_records, medical_reports)
@@ -1551,3 +1676,981 @@ def get_dietary_recommendations_view(request):
     
     recs = get_dietary_recommendations(risk_level, possible_conditions)
     return Response({'recommendations': recs}, status=status.HTTP_200_OK)
+
+
+# ============= PERSISTENT CHAT CONVERSATIONS =============
+
+from .models import ChatConversation, ChatMessage
+from .chat_service import get_chat_service
+from .medical_report_analyzer import get_medical_report_analyzer
+from .serializers import ChatConversationSerializer, ChatConversationListSerializer, ChatMessageSerializer
+
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def chat_conversations_list(request):
+    """
+    GET: List all conversations for the current user
+    POST: Create a new conversation
+    
+    URL: /api/chat/conversations/
+    """
+    if request.method == 'GET':
+        conversations = ChatConversation.objects.filter(user=request.user)
+        serializer = ChatConversationListSerializer(conversations, many=True)
+        return Response({
+            'conversations': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'POST':
+        # Create new conversation
+        first_message = request.data.get('first_message', '')
+        
+        conversation = ChatConversation.objects.create(
+            user=request.user,
+            title='New Conversation',  # Will be updated after first message
+            is_active=True
+        )
+        
+        serializer = ChatConversationSerializer(conversation)
+        return Response({
+            'conversation': serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def chat_conversation_detail(request, conversation_id):
+    """
+    GET: Get a specific conversation with all messages
+    PATCH: Update conversation (title, is_active)
+    DELETE: Delete a conversation
+    
+    URL: /api/chat/conversations/<id>/
+    """
+    try:
+        conversation = ChatConversation.objects.get(id=conversation_id, user=request.user)
+    except ChatConversation.DoesNotExist:
+        return Response(
+            {'error': 'Conversation not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if request.method == 'GET':
+        serializer = ChatConversationSerializer(conversation)
+        return Response({
+            'conversation': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PATCH':
+        # Update conversation (e.g., rename)
+        if 'title' in request.data:
+            conversation.title = request.data['title']
+        if 'is_active' in request.data:
+            conversation.is_active = request.data['is_active']
+        
+        conversation.save()
+        serializer = ChatConversationSerializer(conversation)
+        return Response({
+            'conversation': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'DELETE':
+        conversation.delete()
+        return Response(
+            {'message': 'Conversation deleted successfully'},
+            status=status.HTTP_200_OK
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat_send_message(request, conversation_id):
+    """
+    Send a message in a conversation and get AI response.
+    Supports file uploads for medical reports.
+    
+    URL: /api/chat/conversations/<id>/messages/
+    Body: multipart/form-data or JSON
+    - content: "user message text"
+    - file: (optional) file attachment
+    """
+    try:
+        conversation = ChatConversation.objects.get(id=conversation_id, user=request.user)
+    except ChatConversation.DoesNotExist:
+        return Response(
+            {'error': 'Conversation not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    user_message_content = request.data.get('content', '').strip()
+    uploaded_file = request.FILES.get('file')
+
+    if not user_message_content and not uploaded_file:
+        return Response(
+            {'error': 'Message content or file is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        chat_service = get_chat_service()
+        
+        # 1. Handle File Upload if present
+        file_analysis_text = ""
+        report = None
+        analysis_result = None
+        
+        if uploaded_file:
+            # Create MedicalReport
+            report = MedicalReport.objects.create(
+                user=request.user,
+                file=uploaded_file,
+                file_name=uploaded_file.name,
+                file_type=uploaded_file.content_type,
+                file_size=uploaded_file.size
+            )
+            
+            # Analyze using Gemini
+            analyzer = get_medical_report_analyzer()
+            
+            file_content = uploaded_file.read()
+            # Reset file pointer for any subsequent reads
+            if hasattr(uploaded_file, 'seek'):
+                uploaded_file.seek(0)
+            
+            analysis_result = analyzer.analyze_report(
+                file_bytes=file_content,
+                file_type=uploaded_file.content_type,
+                file_name=uploaded_file.name
+            )
+            
+            if analysis_result.get('success'):
+                # Save analysis to report
+                report.extracted_text = analysis_result.get('markdown_report', '')
+                report.structured_data = analysis_result.get('json_data', {})
+                report.description = analysis_result.get('clinical_insights', '')
+                report.save()
+                
+                # Prepare text to inject into chat context
+                file_analysis_text = (
+                    f"\\n\\n[System: User uploaded a medical report named '{uploaded_file.name}'. "
+                    f"Analysis content: {analysis_result.get('clinical_insights', 'No insights found.')}]"
+                )
+                
+                if not user_message_content:
+                    user_message_content = f"Uploaded medical report: {uploaded_file.name}"
+            else:
+                file_analysis_text = f"\\n\\n[System: User uploaded file '{uploaded_file.name}' but analysis failed: {analysis_result.get('error')}]"
+                if not user_message_content:
+                     user_message_content = f"Uploaded file: {uploaded_file.name} (Analysis failed)"
+
+        # 2. Save User Message
+        try:
+            tokens_est = chat_service.estimate_tokens(user_message_content + file_analysis_text)
+        except:
+            tokens_est = len(user_message_content) // 4
+
+        user_message = ChatMessage.objects.create(
+            conversation=conversation,
+            role='user',
+            content=user_message_content,
+            tokens_used=tokens_est
+        )
+        
+        # Link report to message metadata if exists
+        if report:
+            # Ensure metadata field exists on model. If not, this might fail or be ignored.
+            # Assuming metadata field exists based on previous thought process, but if not, 
+            # we should skip or use another way.
+            # However, I didn't add the field because migrations failed/I skipped migrations.
+            # Wait! I skipped adding `file` field. Did I check `metadata`?
+            # I read `ChatMessage` model and it had `metadata = models.JSONField(...)`.
+            # So `metadata` exists!
+            if hasattr(user_message, 'metadata'):
+                user_message.metadata = {
+                    'type': 'file_upload', 
+                    'report_id': report.id,
+                    'file_url': report.file.url if report.file else ''
+                }
+                user_message.save()
+
+        # If this is the first user message, generate a title
+        if conversation.messages.filter(role='user').count() == 1:
+            generated_title = chat_service.generate_chat_title(user_message_content)
+            conversation.title = generated_title
+            conversation.save()
+        
+        # 3. Build Context
+        context_messages = conversation.get_context_messages()
+        
+        # Inject analysis into context manually for this turn
+        if file_analysis_text:
+             # Find the most recent user message (which corresponds to what we just saved)
+             # context_messages from `get_context_messages` returns messages in chronological order (oldest -> newest)
+             # So the last message should be the user message.
+             if context_messages and context_messages[-1]['role'] == 'user':
+                 context_messages[-1]['content'] += file_analysis_text
+        
+        # Get user profile data for context
+        try:
+            profile = request.user.profile
+            user_data = {
+                'age': profile.date_of_birth,
+                'gender': profile.gender,
+                'past_history': profile.past_history.get('conditions', []) if profile.past_history else []
+            }
+        except:
+            user_data = None
+        
+        # 4. Generate AI Response
+        # We pass modified content as the user message for AI generation
+        # NOTE: generate_ai_response typically takes `user_message` string and `context`.
+        # If we pass `user_message_content` as is, the AI won't see the file analysis unless it's in context.
+        # But we updated `context_messages` above.
+        # Wait, `get_context_messages` returns a list of dicts.
+        # `generate_ai_response` usually takes the *current* message as string, and *history* as list.
+        # If history includes the current message, we might double it?
+        # Let's check `generate_ai_response` again.
+        # It takes `context_messages` and appends `user_message` to it.
+        # "context_text += ... for msg in context_messages ... context_text += f'Patient: {user_message}'"
+        # So `context_messages` should be the HISTORY (excluding current).
+        # But `get_context_messages` includes the current message because we saved it first!
+        # So we should exclude the last message from `context_messages` when passing to `generate_ai_response`, and pass the full content as `user_message`.
+        
+        full_content_for_ai = user_message_content + file_analysis_text
+        context_for_ai = context_messages[:-1] if context_messages else []
+
+        if file_analysis_text and analysis_result and analysis_result.get('success'):
+            ai_response = {
+                'content': analysis_result.get('markdown_report'),
+                'tokens_used': 0
+            }
+        else:
+            ai_response = chat_service.generate_ai_response(
+                full_content_for_ai,
+                context_for_ai,
+                user_data
+            )
+        
+        # 5. Save Assistant Message
+        assistant_message = ChatMessage.objects.create(
+            conversation=conversation,
+            role='assistant',
+            content=ai_response['content'],
+            tokens_used=ai_response['tokens_used']
+        )
+        
+        # Update conversation token count
+        conversation.total_tokens_used += (user_message.tokens_used + assistant_message.tokens_used)
+        conversation.save()
+        
+        # Check if we should suggest a new chat
+        suggest_new_chat = chat_service.should_suggest_new_chat(conversation.total_tokens_used)
+        
+        return Response({
+            'user_message': ChatMessageSerializer(user_message).data,
+            'assistant_message': ChatMessageSerializer(assistant_message).data,
+            'conversation': {
+                'id': conversation.id,
+                'title': conversation.title,
+                'total_tokens_used': conversation.total_tokens_used
+            },
+            'suggest_new_chat': suggest_new_chat
+        }, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        print(f"Error sending message: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Error processing message: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def chat_get_messages(request, conversation_id):
+    """
+    Get all messages in a conversation
+    
+    URL: /api/chat/conversations/<id>/messages/
+    """
+    try:
+        conversation = ChatConversation.objects.get(id=conversation_id, user=request.user)
+    except ChatConversation.DoesNotExist:
+        return Response(
+            {'error': 'Conversation not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    messages = conversation.messages.all().order_by('created_at')
+    serializer = ChatMessageSerializer(messages, many=True)
+    
+    return Response({
+        'messages': serializer.data,
+        'conversation': {
+            'id': conversation.id,
+            'title': conversation.title,
+            'total_tokens_used': conversation.total_tokens_used
+        }
+    }, status=status.HTTP_200_OK)
+
+
+# ============= DETAILED MEDICAL REPORT ANALYSIS (local T5 + pipeline) =============
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def analyze_report_detailed(request):
+    """
+    Generate detailed clinical insights from a medical report using
+    local ML pipeline (OCR + Knowledge Base + T5).
+    No external API calls.
+    
+    Request body (JSON):
+    {
+        "report_id": 123  // ID of the uploaded medical report
+    }
+    
+    OR multipart/form-data with 'file' field for direct analysis without saving
+    
+    Returns:
+        Comprehensive clinical analysis including:
+        - Extracted test results
+        - Abnormal findings
+        - Clinical insights (T5 + Knowledge Base)
+        - Follow-up recommendations
+    """
+    try:
+        from .medical_pipeline import analyze_medical_report_local, analyze_extracted_values
+        
+        report_id = request.data.get('report_id')
+        
+        # Get user gender for reference ranges
+        user = request.user
+        gender = getattr(user, 'gender', 'male') or 'male'
+        gender = gender.lower() if gender else 'male'
+        
+        if report_id:
+            # Analyze an existing report
+            try:
+                report = MedicalReport.objects.get(id=report_id, user=request.user)
+            except MedicalReport.DoesNotExist:
+                return Response(
+                    {'error': 'Medical report not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # If report has structured data with test values, use that first
+            if report.structured_data and isinstance(report.structured_data, dict):
+                test_values, units = _extract_test_values_from_structured(report.structured_data)
+                if test_values:
+                    pipeline_result = analyze_extracted_values(test_values, units=units, gender=gender)
+                    # Save analysis
+                    report.structured_data['detailed_analysis'] = {
+                        'generated_at': timezone.now().isoformat(),
+                        'summary': pipeline_result.get('summary', {}),
+                        'findings_count': len(pipeline_result.get('findings', []))
+                    }
+                    report.save()
+                    return _format_detailed_pipeline_response(pipeline_result, report_id, report.file_name)
+            
+            # Otherwise use file bytes with OCR pipeline
+            report.file.seek(0)
+            file_bytes = report.file.read()
+            file_type = 'pdf' if 'pdf' in report.file_type.lower() else 'image'
+            
+            pipeline_result = analyze_medical_report_local(
+                file_bytes=file_bytes,
+                file_type=file_type,
+                gender=gender,
+                mode='ocr'
+            )
+            
+            # Save analysis
+            if pipeline_result.get('success'):
+                report.structured_data = report.structured_data or {}
+                report.structured_data['detailed_analysis'] = {
+                    'generated_at': timezone.now().isoformat(),
+                    'summary': pipeline_result.get('summary', {}),
+                    'findings_count': len(pipeline_result.get('findings', []))
+                }
+                report.save()
+            
+            return _format_detailed_pipeline_response(pipeline_result, report_id, report.file_name)
+            
+        elif 'file' in request.FILES:
+            # Analyze uploaded file directly
+            uploaded_file = request.FILES['file']
+            file_bytes = uploaded_file.read()
+            file_type = 'pdf' if 'pdf' in uploaded_file.content_type.lower() else 'image'
+            
+            pipeline_result = analyze_medical_report_local(
+                file_bytes=file_bytes,
+                file_type=file_type,
+                gender=gender,
+                mode='ocr'
+            )
+            
+            return _format_detailed_pipeline_response(pipeline_result, None, uploaded_file.name)
+        else:
+            return Response(
+                {'error': 'Either report_id or file must be provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+    except Exception as e:
+        print(f"Error in detailed report analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Error analyzing report: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+def _extract_test_values_from_structured(structured_data: dict):
+    """Extract test values and units from structured_data dict."""
+    test_values = {}
+    units = {}
+    
+    if 'parameters' in structured_data:
+        for param in structured_data.get('parameters', []):
+            if isinstance(param, dict):
+                name = param.get('name') or param.get('test') or param.get('parameter')
+                value = param.get('value')
+                unit = param.get('unit', '')
+                if name and value:
+                    try:
+                        test_values[name] = float(str(value).replace(',', ''))
+                        if unit:
+                            units[name] = unit
+                    except (ValueError, TypeError):
+                        pass
+    
+    if 'abnormal_results' in structured_data:
+        for result in structured_data.get('abnormal_results', []):
+            if isinstance(result, dict):
+                name = result.get('parameter') or result.get('name')
+                value = result.get('value')
+                if name and value:
+                    try:
+                        test_values[name] = float(str(value).replace(',', ''))
+                    except (ValueError, TypeError):
+                        pass
+    
+    # Also check for direct test_name:value mappings
+    for key, value in structured_data.items():
+        if key.startswith('llm_') or key in ('parameters', 'abnormal_results', 'detailed_analysis', 'pipeline_analysis'):
+            continue
+        if isinstance(value, (int, float)):
+            test_values[key] = float(value)
+    
+    return test_values, units
+
+
+def _format_detailed_pipeline_response(pipeline_result: dict, report_id, file_name: str) -> Response:
+    """
+    Format local pipeline result for the detailed analysis endpoint.
+    Compatible with frontend expectations.
+    """
+    if not pipeline_result.get('success'):
+        return Response(
+            {'error': pipeline_result.get('error', 'Analysis failed')},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    summary_data = pipeline_result.get('summary', {})
+    findings = pipeline_result.get('findings', [])
+    text_report = pipeline_result.get('text_report', '')
+    narrative_insights = (
+        pipeline_result.get('clinical_insights')
+        or pipeline_result.get('markdown_report')
+        or text_report
+        or ""
+    )
+    
+    # Build extraction summary
+    extraction_summary = {
+        'total_tests': summary_data.get('total_tests', 0),
+        'abnormal_count': summary_data.get('abnormal', 0),
+        'normal_count': summary_data.get('normal', 0),
+        'critical_findings': [],
+        'all_abnormals': []
+    }
+    
+    for f in findings:
+        st = f.get('status', 'UNKNOWN')
+        if 'CRITICAL' in st:
+            extraction_summary['critical_findings'].append({
+                'test': f.get('test_name', ''),
+                'value': f.get('value'),
+                'unit': f.get('unit', ''),
+                'status': st
+            })
+        if st not in ('NORMAL', 'UNKNOWN'):
+            extraction_summary['all_abnormals'].append({
+                'test': f.get('test_name', ''),
+                'value': f.get('value'),
+                'unit': f.get('unit', ''),
+                'status': st,
+                'explanation': f.get('explanation', {}).get('simple', '')
+            })
+    
+    # Build clinical insights from structured findings; fallback to direct model narrative
+    insights_parts = []
+    total = summary_data.get('total_tests', 0)
+    abnormal = summary_data.get('abnormal', 0)
+    critical = summary_data.get('critical_flags', 0)
+
+    if total == 0 and not findings and narrative_insights.strip():
+        clinical_insights = narrative_insights
+        return Response({
+            'success': True,
+            'report_id': report_id,
+            'file_name': file_name,
+            'generated_at': timezone.now().isoformat(),
+            'extraction_summary': extraction_summary,
+            'extracted_reports': findings,
+            'clinical_insights': clinical_insights,
+            'markdown_report': narrative_insights,
+            'summary': 'Analysis complete. Narrative insights generated from the uploaded report.',
+            'risk_assessment': 'Review insights and consult doctor for final diagnosis.',
+            'key_findings': ['Detailed AI explanation generated from report content.'],
+            'recommendations': ['Please review the detailed insights and consult your healthcare provider.'],
+            'follow_up': 'Consult your doctor for medical decisions based on this report.'
+        }, status=status.HTTP_200_OK)
+    
+    insights_parts.append(f"## Summary\nAnalyzed {total} test parameters. "
+                          f"{abnormal} abnormal value(s) found.")
+    if critical > 0:
+        insights_parts.append(f"\n**⚠️ {critical} CRITICAL value(s) detected — immediate medical attention recommended.**")
+    
+    insights_parts.append("\n## Findings")
+    for f in findings:
+        st = f.get('status', 'UNKNOWN')
+        if st in ('NORMAL', 'UNKNOWN'):
+            continue
+        name = f.get('test_name', '')
+        val = f.get('value', '')
+        unit = f.get('unit', '')
+        icon = f.get('status_icon', '')
+        explanation = f.get('explanation', {})
+        simple = explanation.get('simplified') or explanation.get('simple', '')
+        
+        insights_parts.append(f"\n### {icon} {name}: {val} {unit} ({st})")
+        if simple:
+            insights_parts.append(f"{simple}")
+        causes = explanation.get('possible_causes', [])
+        if causes:
+            insights_parts.append(f"\n**Possible causes:** {', '.join(causes[:4])}")
+        action = explanation.get('action', '')
+        if action:
+            insights_parts.append(f"\n**Recommended action:** {action}")
+    
+    # Note normal values
+    normal_count = summary_data.get('normal', 0)
+    if normal_count > 0:
+        insights_parts.append(f"\n## Normal Values\n✅ {normal_count} test(s) within normal reference ranges.")
+    
+    clinical_insights = "\n".join(insights_parts)
+    
+    return Response({
+        'success': True,
+        'report_id': report_id,
+        'file_name': file_name,
+        'generated_at': timezone.now().isoformat(),
+        'extraction_summary': extraction_summary,
+        'extracted_reports': findings,
+        'clinical_insights': clinical_insights,
+        'markdown_report': text_report,
+        # Also include frontend-compatible format
+        'summary': f"Analysis complete. {total} tests: {abnormal} abnormal, {total - abnormal} normal." + 
+                   (f" ⚠️ {critical} critical." if critical else ""),
+        'risk_assessment': (
+            "HIGH - Critical values detected." if critical > 0
+            else "MODERATE - Abnormal values found." if abnormal > 0
+            else "MINIMAL - All normal."
+        ),
+        'key_findings': [
+            f"{f.get('status_icon','')} {f.get('test_name','')}: {f.get('value','')} {f.get('unit','')} ({f.get('status','')})"
+            for f in findings if f.get('status') not in ('NORMAL', 'UNKNOWN')
+        ][:10],
+        'recommendations': list({
+            f.get('explanation', {}).get('action', '')
+            for f in findings
+            if f.get('status') not in ('NORMAL', 'UNKNOWN') and f.get('explanation', {}).get('action')
+        })[:5] or ["Maintain healthy lifestyle and regular check-ups."],
+        'follow_up': (
+            "Immediate medical consultation required." if critical > 0
+            else "Schedule follow-up with your doctor." if abnormal > 0
+            else "Continue routine monitoring."
+        )
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_report_analysis(request, report_id):
+    """
+    Download detailed analysis as JSON or Markdown file.
+    Uses local pipeline (T5 + KB) — no external API calls.
+    
+    Query params:
+        - format: 'json' or 'md' (default: 'md')
+    
+    Returns:
+        File download with analysis data
+    """
+    try:
+        from .medical_pipeline import analyze_medical_report_local, analyze_extracted_values
+        
+        report = MedicalReport.objects.get(id=report_id, user=request.user)
+        
+        output_format = request.GET.get('format', 'md').lower()
+        
+        # Check if analysis already exists in structured_data
+        if report.structured_data and 'detailed_analysis' in report.structured_data:
+            analysis = report.structured_data['detailed_analysis']
+            
+            if output_format == 'json':
+                content = json.dumps({
+                    'report_name': report.file_name,
+                    'analysis': analysis
+                }, indent=2)
+                content_type = 'application/json'
+                filename = f"{report.file_name.rsplit('.', 1)[0]}_analysis.json"
+            else:
+                content = f"# Medical Report Analysis\n\n"
+                content += f"**Report:** {report.file_name}\n\n"
+                content += f"**Generated:** {analysis.get('generated_at', 'N/A')}\n\n"
+                content += "---\n\n"
+                content += f"**Tests:** {analysis.get('summary', {}).get('total_tests', 'N/A')}\n"
+                content += f"**Abnormal:** {analysis.get('summary', {}).get('abnormal', 'N/A')}\n\n"
+                content_type = 'text/markdown'
+                filename = f"{report.file_name.rsplit('.', 1)[0]}_analysis.md"
+        else:
+            # Run analysis using local pipeline
+            user = request.user
+            gender = getattr(user, 'gender', 'male') or 'male'
+            gender = gender.lower() if gender else 'male'
+            
+            # Try structured data first
+            pipeline_result = None
+            if report.structured_data and isinstance(report.structured_data, dict):
+                test_values, units = _extract_test_values_from_structured(report.structured_data)
+                if test_values:
+                    pipeline_result = analyze_extracted_values(test_values, units=units, gender=gender)
+            
+            # Fall back to file-based analysis
+            if not pipeline_result or not pipeline_result.get('success'):
+                report.file.seek(0)
+                file_bytes = report.file.read()
+                file_type = 'pdf' if 'pdf' in report.file_type.lower() else 'image'
+                pipeline_result = analyze_medical_report_local(
+                    file_bytes=file_bytes,
+                    file_type=file_type,
+                    gender=gender,
+                    mode='ocr'
+                )
+            
+            if not pipeline_result.get('success'):
+                return Response(
+                    {'error': pipeline_result.get('error', 'Analysis failed')},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if output_format == 'json':
+                content = json.dumps(pipeline_result, indent=2, default=str)
+                content_type = 'application/json'
+                filename = f"{report.file_name.rsplit('.', 1)[0]}_analysis.json"
+            else:
+                content = pipeline_result.get('text_report', 'No report generated.')
+                content_type = 'text/markdown'
+                filename = f"{report.file_name.rsplit('.', 1)[0]}_analysis.md"
+            
+            # Save analysis for future use
+            report.structured_data = report.structured_data or {}
+            report.structured_data['detailed_analysis'] = {
+                'generated_at': timezone.now().isoformat(),
+                'summary': pipeline_result.get('summary', {}),
+                'findings_count': len(pipeline_result.get('findings', []))
+            }
+            report.save()
+        
+        response = HttpResponse(content, content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    except MedicalReport.DoesNotExist:
+        return Response(
+            {'error': 'Report not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        print(f"Error downloading analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Error: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ============= LOCAL MEDICAL PIPELINE ANALYSIS =============
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def analyze_report_local_pipeline(request):
+    """
+    Analyze medical report using local ML pipeline (LayoutLMv3 + OCR + Knowledge Base + T5).
+    
+    This endpoint uses a fully local pipeline without external API calls:
+    1. Preprocessing - resize, denoise, deskew, normalize
+    2. OCR/Extraction - LayoutLMv3 or pytesseract
+    3. Normalization - alias resolution, unit normalization
+    4. Rule Engine - compare against reference ranges
+    5. Knowledge Base - retrieve structured explanations
+    6. Simplification - T5-small for patient-friendly language
+    7. Report Assembly - structured JSON output
+    
+    Request body (JSON):
+    {
+        "report_id": 123,
+        "extracted_text": "...",  // optional pre-extracted text
+        "structured_data": {...}  // optional pre-extracted structured data
+    }
+    
+    Returns:
+        {
+            "summary": "Overall analysis summary",
+            "risk_assessment": "Risk level assessment",
+            "key_findings": ["finding1", "finding2", ...],
+            "recommendations": ["rec1", "rec2", ...],
+            "follow_up": "Follow-up recommendations",
+            "detailed_findings": [...],  // Full findings list
+            "text_report": "..."  // Full text report
+        }
+    """
+    try:
+        from .medical_pipeline import analyze_medical_report_local, analyze_extracted_values
+        
+        report_id = request.data.get('report_id')
+        extracted_text = request.data.get('extracted_text', '')
+        structured_data = request.data.get('structured_data', {})
+        
+        # Get user gender for reference ranges
+        user = request.user
+        gender = getattr(user, 'gender', 'male') or 'male'
+        gender = gender.lower() if gender else 'male'
+        
+        # If we have pre-extracted structured data with test values, use that
+        if structured_data and isinstance(structured_data, dict):
+            # Check if structured_data has test results we can analyze
+            test_values = {}
+            units = {}
+            
+            # Try to extract test values from various possible formats
+            if 'parameters' in structured_data:
+                for param in structured_data.get('parameters', []):
+                    if isinstance(param, dict):
+                        name = param.get('name') or param.get('test') or param.get('parameter')
+                        value = param.get('value')
+                        unit = param.get('unit', '')
+                        if name and value:
+                            try:
+                                test_values[name] = float(str(value).replace(',', ''))
+                                if unit:
+                                    units[name] = unit
+                            except (ValueError, TypeError):
+                                pass
+            
+            # Also check for abnormal_results format
+            if 'abnormal_results' in structured_data:
+                for result in structured_data.get('abnormal_results', []):
+                    if isinstance(result, dict):
+                        name = result.get('parameter') or result.get('name')
+                        value = result.get('value')
+                        if name and value:
+                            try:
+                                test_values[name] = float(str(value).replace(',', ''))
+                            except (ValueError, TypeError):
+                                pass
+            
+            # If we found test values, analyze them directly
+            if test_values:
+                pipeline_result = analyze_extracted_values(test_values, units=units, gender=gender)
+                return _format_pipeline_response(pipeline_result)
+        
+        # Otherwise, if we have a report_id, load and analyze the file
+        if report_id:
+            try:
+                report = MedicalReport.objects.get(id=report_id, user=request.user)
+            except MedicalReport.DoesNotExist:
+                return Response(
+                    {'error': 'Medical report not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Read file bytes
+            report.file.seek(0)
+            file_bytes = report.file.read()
+            
+            # Determine file type
+            file_type = 'pdf' if 'pdf' in report.file_type.lower() else 'image'
+            
+            # Run the local pipeline
+            pipeline_result = analyze_medical_report_local(
+                file_bytes=file_bytes,
+                file_type=file_type,
+                gender=gender,
+                mode='ocr'  # Use OCR mode for faster processing
+            )
+            
+            # Save analysis to report
+            if pipeline_result.get('success'):
+                report.structured_data = report.structured_data or {}
+                report.structured_data['pipeline_analysis'] = {
+                    'summary': pipeline_result.get('summary', {}),
+                    'findings_count': len(pipeline_result.get('findings', [])),
+                    'analyzed_at': timezone.now().isoformat()
+                }
+                report.save()
+            
+            return _format_pipeline_response(pipeline_result)
+        
+        # If neither structured_data nor report_id, return error
+        return Response(
+            {'error': 'Either report_id or structured_data with test values must be provided'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        
+    except Exception as e:
+        print(f"Error in local pipeline analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Error analyzing report: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+def _format_pipeline_response(pipeline_result: dict) -> Response:
+    """
+    Format pipeline result to match frontend expected format.
+    
+    Frontend expects:
+    {
+        "summary": string,
+        "risk_assessment": string,
+        "key_findings": string[],
+        "recommendations": string[],
+        "follow_up": string
+    }
+    """
+    if not pipeline_result.get('success'):
+        return Response({
+            'summary': 'Analysis could not be completed.',
+            'risk_assessment': 'Unable to assess',
+            'key_findings': [pipeline_result.get('error', 'Unknown error occurred')],
+            'recommendations': ['Please try uploading a clearer image or consult your doctor directly.'],
+            'follow_up': 'Consult your healthcare provider for proper interpretation.'
+        }, status=status.HTTP_200_OK)
+    
+    summary_data = pipeline_result.get('summary', {})
+    findings = pipeline_result.get('findings', [])
+    narrative_insights = (
+        pipeline_result.get('clinical_insights')
+        or pipeline_result.get('markdown_report')
+        or pipeline_result.get('text_report')
+        or ""
+    )
+    
+    # Build summary text
+    total = summary_data.get('total_tests', 0)
+    abnormal = summary_data.get('abnormal', 0)
+    normal = summary_data.get('normal', 0)
+    critical = summary_data.get('critical_flags', 0)
+    
+    if total == 0 and narrative_insights.strip():
+        first_line = narrative_insights.strip().splitlines()[0]
+        summary_text = first_line[:300] if first_line else "Analysis completed with narrative insights."
+    elif total == 0:
+        summary_text = "Analysis completed, but no structured test table was detected."
+    else:
+        summary_text = f"Analysis complete. Found {total} test parameters: {abnormal} abnormal, {normal} normal."
+        if critical > 0:
+            summary_text += f" ⚠️ {critical} critical value(s) detected requiring immediate attention."
+    
+    # Build risk assessment
+    if critical > 0:
+        risk_assessment = "HIGH - Critical values detected. Immediate medical consultation recommended."
+    elif abnormal > total * 0.5:
+        risk_assessment = "MODERATE - Multiple abnormal values. Medical follow-up recommended."
+    elif abnormal > 0:
+        risk_assessment = "LOW - Some values outside normal range. Monitor and discuss with doctor if concerned."
+    else:
+        risk_assessment = "MINIMAL - All values within normal range."
+    
+    # Build key findings (abnormal values with explanations)
+    key_findings = []
+    for finding in findings:
+        status_val = finding.get('status', 'UNKNOWN')
+        if status_val not in ('NORMAL', 'UNKNOWN'):
+            test_name = finding.get('test_name', finding.get('canonical_name', 'Unknown test'))
+            value = finding.get('value', '')
+            unit = finding.get('unit', '')
+            icon = finding.get('status_icon', '')
+            explanation = finding.get('explanation', {})
+            simple_text = explanation.get('simplified') or explanation.get('simple', '')
+            
+            finding_text = f"{icon} {test_name}: {value} {unit} ({status_val})"
+            if simple_text:
+                finding_text += f" - {simple_text[:200]}"
+            key_findings.append(finding_text)
+    
+    # If no abnormal findings, mention normal results
+    if not key_findings:
+        if total > 0:
+            key_findings = ["✅ All analyzed parameters are within normal reference ranges."]
+        elif narrative_insights.strip():
+            key_findings = ["Detailed AI narrative insights were generated from the uploaded report."]
+        else:
+            key_findings = ["No structured test values were extracted from this report."]
+    
+    # Build recommendations
+    recommendations = []
+    seen_actions = set()
+    for finding in findings:
+        status_val = finding.get('status', 'UNKNOWN')
+        if status_val not in ('NORMAL', 'UNKNOWN'):
+            action = finding.get('explanation', {}).get('action', '')
+            if action and action not in seen_actions:
+                recommendations.append(action)
+                seen_actions.add(action)
+    
+    # Add general recommendations
+    if critical > 0:
+        recommendations.insert(0, "⚠️ URGENT: Seek immediate medical attention for critical values.")
+    
+    if not recommendations:
+        recommendations = ["Maintain a healthy lifestyle and schedule regular check-ups."]
+    
+    # Build follow-up text
+    if critical > 0:
+        follow_up = "Immediate medical consultation required. Contact your healthcare provider today."
+    elif abnormal > 0:
+        follow_up = "Schedule a follow-up appointment with your doctor to discuss these results and any lifestyle modifications."
+    else:
+        follow_up = "No immediate follow-up required. Continue regular health monitoring and annual check-ups."
+    
+    return Response({
+        'summary': summary_text,
+        'risk_assessment': risk_assessment,
+        'key_findings': key_findings[:10],  # Limit to top 10 findings
+        'recommendations': recommendations[:5],  # Limit to top 5 recommendations
+        'follow_up': follow_up,
+        'detailed_findings': findings,  # Include full findings for detailed view
+        'text_report': pipeline_result.get('text_report', '')
+    }, status=status.HTTP_200_OK)

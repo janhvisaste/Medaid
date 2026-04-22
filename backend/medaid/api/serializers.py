@@ -3,7 +3,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from .models import (
     User, UserProfile, MedicalReport, ConsultationSession,
-    PatientAssignment, ClinicianNote, ClinicianAlert, TriageRecord
+    PatientAssignment, ClinicianNote, ClinicianAlert, TriageRecord,
+    ChatConversation, ChatMessage
 )
 
 
@@ -21,7 +22,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'date_of_birth', 'gender', 'institution', 'license_number', 'license_expiry', 'created_at', 'updated_at']
+        fields = ['id', 'user', 'date_of_birth', 'gender', 'city', 'state', 'pincode', 'institution', 'license_number', 'license_expiry', 'preferred_language', 'past_history', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
@@ -41,8 +42,8 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create_user(
+            username=validated_data['email'],
             email=validated_data['email'],
-            username=validated_data['email'],  # Use email as username
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
@@ -96,17 +97,21 @@ class LogoutSerializer(serializers.Serializer):
 class MedicalReportSerializer(serializers.ModelSerializer):
     """Serializer for Medical Reports"""
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_first_name = serializers.CharField(source='user.first_name', read_only=True)
+    user_last_name = serializers.CharField(source='user.last_name', read_only=True)
     file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MedicalReport
-        fields = ['id', 'user', 'user_email', 'file', 'file_url', 'file_name', 'file_type', 'file_size', 'description', 'upload_date', 'updated_at']
-        read_only_fields = ['id', 'user', 'upload_date', 'updated_at']
+        fields = ['id', 'user', 'user_email', 'user_first_name', 'user_last_name', 'file', 'file_url', 'file_name', 'file_type', 'file_size', 'description', 'extracted_text', 'structured_data', 'upload_date', 'updated_at']
+        read_only_fields = ['id', 'user', 'upload_date', 'updated_at', 'file_name', 'file_type', 'file_size']
 
     def get_file_url(self, obj):
         request = self.context.get('request')
         if obj.file and request:
             return request.build_absolute_uri(obj.file.url)
+        elif obj.file:
+            return obj.file.url
         return None
 
 
@@ -128,6 +133,7 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
 class TriageRecordSerializer(serializers.ModelSerializer):
     """Serializer for TriageRecord model"""
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    patient_name = serializers.SerializerMethodField()
     possible_conditions = serializers.SerializerMethodField()
     recommendations = serializers.SerializerMethodField()
 
@@ -221,3 +227,64 @@ class ClinicianStatsSerializer(serializers.Serializer):
     high_risk_patients = serializers.IntegerField()
     todays_assessments = serializers.IntegerField()
     pending_alerts = serializers.IntegerField()
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    """Serializer for ChatMessage model"""
+    
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'conversation', 'role', 'content', 'metadata', 'tokens_used', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ChatConversationSerializer(serializers.ModelSerializer):
+    """Serializer for ChatConversation model"""
+    messages = ChatMessageSerializer(many=True, read_only=True)
+    message_count = serializers.SerializerMethodField()
+    preview_message = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChatConversation
+        fields = [
+            'id', 'user', 'title', 'is_active', 'total_tokens_used',
+            'last_activity', 'created_at', 'updated_at',
+            'messages', 'message_count', 'preview_message'
+        ]
+        read_only_fields = ['id', 'user', 'last_activity', 'created_at', 'updated_at']
+    
+    def get_message_count(self, obj):
+        return obj.messages.count()
+    
+    def get_preview_message(self, obj):
+        """Get a preview of the last message"""
+        last_message = obj.messages.order_by('-created_at').first()
+        if last_message:
+            preview = last_message.content[:60]
+            return f"{preview}..." if len(last_message.content) > 60 else preview
+        return "No messages yet"
+
+
+class ChatConversationListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing conversations (without full messages)"""
+    message_count = serializers.SerializerMethodField()
+    preview_message = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChatConversation
+        fields = [
+            'id', 'title', 'is_active', 'total_tokens_used',
+            'last_activity', 'created_at', 'message_count', 'preview_message'
+        ]
+        read_only_fields = ['id', 'last_activity', 'created_at']
+    
+    def get_message_count(self, obj):
+        return obj.messages.count()
+    
+    def get_preview_message(self, obj):
+        """Get a preview of the last message"""
+        last_message = obj.messages.order_by('-created_at').first()
+        if last_message:
+            preview = last_message.content[:60]
+            return f"{preview}..." if len(last_message.content) > 60 else preview
+        return "No messages yet"

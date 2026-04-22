@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import apiService from '../../services/apiService';
 import type { ConsultationSession, Facility } from '../../services/apiService';
+import FacilitiesMap from './FacilitiesMap';
 
 interface Question {
   question: string;
@@ -108,9 +109,13 @@ const ConsultationWizard: React.FC = () => {
       // 1. Upload file if exists
       if (selectedFile) {
         try {
-          const reportResult = await apiService.uploadMedicalReport(selectedFile, 'Consultation Upload');
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          formData.append('description', 'Consultation Upload');
+          
+          const reportResult = await apiService.uploadMedicalReport(formData);
           // Start analysis on the report to get structured data
-          const analysisResult = await apiService.analyzeMedicalReport(reportResult.id); // Note: verify response field name
+          const analysisResult = await apiService.analyzeMedicalReport(reportResult.id);
           reportId = reportResult.id;
 
           // Pre-fill symptoms if analysis extracted text and user left it blank
@@ -709,7 +714,9 @@ const ConsultationWizard: React.FC = () => {
                     <Loader2 className="animate-spin text-blue-500" />
                   </div>
                 ) : nearbyFacilities.length > 0 ? (
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                  <div className="space-y-4">
+                    <FacilitiesMap facilities={nearbyFacilities} />
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                     {nearbyFacilities.map((facility, i) => (
                       <div key={i} className="bg-slate-800 rounded-lg p-3 hover:bg-slate-700 transition-colors border border-slate-700">
                         <div className="font-semibold text-blue-200">{facility.name}</div>
@@ -718,10 +725,10 @@ const ConsultationWizard: React.FC = () => {
                           <span className="bg-slate-900 px-2 py-1 rounded text-slate-300">
                             {facility.distance_km ? `${facility.distance_km.toFixed(1)} km` : 'Near you'}
                           </span>
-                          <button className="text-blue-400 hover:text-blue-300 font-medium">Open Map</button>
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center text-slate-500 py-10">

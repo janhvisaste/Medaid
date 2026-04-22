@@ -9,6 +9,8 @@ class User(AbstractUser):
         ('admin', 'Admin'),
     ]
     
+    # Make username optional since we're using email as USERNAME_FIELD
+    username = models.CharField(max_length=150, unique=True, null=True, blank=True)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='patient')
@@ -20,7 +22,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = []  # Empty because we only need email
 
     class Meta:
         db_table = 'auth_user'
@@ -349,3 +351,76 @@ class ClinicianAlert(models.Model):
     
     def __str__(self):
         return f"{self.alert_type} for {self.clinician.email} - {self.patient.email}"
+
+
+class ChatConversation(models.Model):
+    """Persistent chat conversations with context memory"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_conversations')
+    title = models.CharField(max_length=255, default='New Conversation')
+    is_active = models.BooleanField(default=True)
+    
+    # Metadata for context management
+    total_tokens_used = models.IntegerField(default=0)
+    last_activity = models.DateTimeField(auto_now=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'chat_conversations'
+        verbose_name = 'Chat Conversation'
+        verbose_name_plural = 'Chat Conversations'
+        ordering = ['-last_activity']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.title}"
+    
+    def get_context_messages(self, max_tokens=3000):
+        """Get recent messages within token limit for context"""
+        messages = self.messages.all().order_by('-created_at')[:20]  # Last 20 messages
+        
+        context = []
+        tokens_estimate = 0
+        
+        for msg in reversed(list(messages)):
+            # Rough token estimation: ~4 chars per token
+            msg_tokens = (len(msg.content) + len(msg.role)) // 4
+            
+            if tokens_estimate + msg_tokens > max_tokens:
+                break
+            
+            context.append({
+                'role': msg.role,
+                'content': msg.content
+            })
+            tokens_estimate += msg_tokens
+        
+        return context
+
+
+class ChatMessage(models.Model):
+    """Individual messages within a chat conversation"""
+    ROLE_CHOICES = [
+        ('user', 'User'),
+        ('assistant', 'Assistant'),
+        ('system', 'System'),
+    ]
+    
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='messages')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    content = models.TextField()
+    
+    # Optional metadata
+    metadata = models.JSONField(default=dict, blank=True)  # For risk_level, triage_data, etc.
+    tokens_used = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'chat_messages'
+        verbose_name = 'Chat Message'
+        verbose_name_plural = 'Chat Messages'
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"{self.role}: {self.content[:50]}..."

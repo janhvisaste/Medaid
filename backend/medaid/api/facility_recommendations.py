@@ -11,6 +11,7 @@ import os
 import json
 import math
 import time
+import re
 import requests
 from pathlib import Path
 from django.conf import settings
@@ -129,8 +130,19 @@ def _nominatim_geocode(address):
         return cached
     
     url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": address, "format": "json", "limit": 1}
-    headers = {"User-Agent": "Medaid/1.0 (medaid@example.com)"}
+    query = str(address or "").strip()
+    pincode_match = re.search(r'\b(\d{6})\b', query)
+    if pincode_match:
+        query = f"{pincode_match.group(1)}, India"
+    elif query.isdigit():
+        query = f"{query}, India"
+    params = {
+        "q": query,
+        "format": "json",
+        "limit": 1,
+        "countrycodes": "in",
+    }
+    headers = {"User-Agent": "MedAid-HealthApp/1.0", "Accept-Language": "en"}
     try:
         r = requests.get(url, params=params, headers=headers, timeout=10)
         data = r.json()
@@ -147,55 +159,82 @@ def _overpass_find_hospitals(lat, lng, radius_m=10000):
     """Find hospitals using OpenStreetMap Overpass API"""
     cache_key = f"overpass_{lat}_{lng}_{radius_m}"
     cached = _cache_get(cache_key)
-    if cached:
+    if cached is not None:
         return cached
-    
+
     query = f"""
-    [out:json][timeout:25];
+    [out:json][timeout:20];
     (
-      node["amenity"="hospital"](around:{radius_m},{lat},{lng});
-      way["amenity"="hospital"](around:{radius_m},{lat},{lng});
-      node["healthcare"="clinic"](around:{radius_m},{lat},{lng});
-      node["healthcare"="doctors"](around:{radius_m},{lat},{lng});
+      nwr["amenity"~"hospital|clinic|doctors"](around:{radius_m},{lat},{lng});
+      nwr["healthcare"~"hospital|clinic|doctor|doctors"](around:{radius_m},{lat},{lng});
     );
-    out center 20;
+    out center tags;
     """
-    url = "https://overpass-api.de/api/interpreter"
-    try:
-        resp = requests.post(url, data=query, timeout=30)
-        data = resp.json()
-        out = []
-        for el in data.get("elements", [])[:50]:
-            if el.get("type") == "node":
-                latp = el.get("lat")
-                lngp = el.get("lon")
-            else:
-                c = el.get("center") or {}
-                latp = c.get("lat")
-                lngp = c.get("lon")
-            
-            tags = el.get("tags", {})
-            name = tags.get("name") or tags.get("official_name") or "Hospital"
-            
-            addr_parts = []
-            for k in ("addr:street", "addr:housenumber", "addr:city", "addr:postcode"):
-                if tags.get(k):
-                    addr_parts.append(tags.get(k))
-            address = ", ".join(addr_parts) if addr_parts else (tags.get("operator") or "")
-            
-            maps_url = f"https://www.openstreetmap.org/?mlat={latp}&mlon={lngp}#map=16/{latp}/{lngp}"
-            out.append({
-                "name": name,
-                "address": address,
-                "lat": latp,
-                "lng": lngp,
-                "maps_url": maps_url,
-                "phone": tags.get("phone", "")
-            })
-        _cache_set(cache_key, out)
-        return out
-    except Exception:
-        return []
+    overpass_urls = [
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://overpass-api.de/api/interpreter",
+    ]
+
+    for url in overpass_urls:
+        try:
+            resp = requests.post(
+                url,
+                data=query,
+                timeout=25,
+                headers={"User-Agent": "Medaid/1.0 (medaid@example.com)"}
+            )
+            if resp.status_code != 200:
+                continue
+
+            data = resp.json()
+            out = []
+            seen = set()
+
+            for el in data.get("elements", [])[:100]:
+                if el.get("type") == "node":
+                    latp = el.get("lat")
+                    lngp = el.get("lon")
+                else:
+                    c = el.get("center") or {}
+                    latp = c.get("lat")
+                    lngp = c.get("lon")
+
+                if latp is None or lngp is None:
+                    continue
+
+                tags = el.get("tags", {})
+                name = tags.get("name") or tags.get("official_name") or tags.get("operator") or "Medical Facility"
+
+                key = (name, round(float(latp), 5), round(float(lngp), 5))
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                addr_parts = []
+                for k in ("addr:housenumber", "addr:street", "addr:suburb", "addr:city", "addr:postcode"):
+                    if tags.get(k):
+                        addr_parts.append(tags.get(k))
+                address = ", ".join(addr_parts) if addr_parts else (tags.get("operator") or "")
+
+                maps_url = f"https://www.openstreetmap.org/?mlat={latp}&mlon={lngp}#map=16/{latp}/{lngp}"
+                out.append({
+                    "name": name,
+                    "address": address,
+                    "lat": latp,
+                    "lng": lngp,
+                    "latitude": latp,
+                    "longitude": lngp,
+                    "maps_url": maps_url,
+                    "phone": tags.get("phone") or tags.get("contact:phone") or ""
+                })
+
+            _cache_set(cache_key, out)
+            return out
+        except Exception:
+            continue
+
+    _cache_set(cache_key, [])
+    return []
 
 def get_nearby_facilities(location, risk_level="medium", radius_km=10):
     """
@@ -217,13 +256,25 @@ def get_nearby_facilities(location, risk_level="medium", radius_km=10):
     
     # Try to parse as coordinates first
     try:
-        if "," in str(location):
-            parts = location.split(",")
-            user_lat = float(parts[0].strip())
-            user_lng = float(parts[1].strip())
-        else:
-            # Geocode the location
-            coords = _google_geocode(location) or _nominatim_geocode(location)
+        location_text = str(location or "").strip()
+        parsed_as_coords = False
+
+        if "," in location_text:
+            parts = [p.strip() for p in location_text.split(",")]
+            if len(parts) == 2:
+                try:
+                    cand_lat = float(parts[0])
+                    cand_lng = float(parts[1])
+                    if -90 <= cand_lat <= 90 and -180 <= cand_lng <= 180:
+                        user_lat = cand_lat
+                        user_lng = cand_lng
+                        parsed_as_coords = True
+                except ValueError:
+                    parsed_as_coords = False
+
+        if not parsed_as_coords:
+            # Geocode city/address/pincode text
+            coords = _google_geocode(location_text) or _nominatim_geocode(location_text)
             if not coords:
                 return []
             user_lat = coords["lat"]

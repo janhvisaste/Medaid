@@ -1,350 +1,354 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-
-import { 
-  Heart, 
-  Users,
-  CheckCircle,
-  TrendingUp,
-  BarChart3,
-  MessageSquare,
+import React, { useRef, useState, useEffect } from 'react';
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import {
+  Activity,
   ArrowRight,
-  Play,
-  Brain
+  Brain,
+  ChevronDown,
+  FileText,
+  HeartPulse,
+  Menu,
+  Shield,
+  Sparkles,
+  Stethoscope,
+  Syringe,
+  Users,
+  X,
 } from 'lucide-react';
+type IconType = React.ElementType;
 
 const MedaidLanding: React.FC = () => {
   const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState('home');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleGetStarted = () => {
-    navigate('/dashboard');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const homeRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
+
+  // Scroll progress
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] });
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 80, damping: 25 });
+  const navBg = useTransform(smoothProgress, [0, 0.05], [0, 1]);
+
+  // Track active section
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
+    [homeRef, featuresRef, aboutRef].forEach(ref => {
+      if (ref.current) observer.observe(ref.current);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollTo = (id: string) => {
+    setMobileMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const navLinks = [
+    { id: 'home', label: 'Home' },
+    { id: 'features', label: 'Features' },
+    { id: 'about', label: 'About' },
+  ];
+
+  const offerings: { icon: IconType; title: string; description: string }[] = [
+    { icon: Stethoscope, title: 'Clinical Triage', description: 'AI-assisted symptom intake and urgency scoring to help patients reach care faster.' },
+    { icon: FileText, title: 'Medical Report Analysis', description: 'Upload reports and get structured findings, risks, and simplified explanations.' },
+    { icon: Brain, title: 'Care Intelligence', description: 'Actionable insights for clinicians and patients based on history and current condition.' },
+    { icon: Syringe, title: 'Preventive Guidance', description: 'Personalized health reminders and wellness recommendations for better outcomes.' },
+  ];
+
+  const achievements = [
+    { title: 'Trusted by growing care teams', detail: 'Adopted by clinics and community health providers for streamlined triage workflows.' },
+    { title: 'High patient clarity scores', detail: 'Patients understand results better through plain-language explanations.' },
+    { title: 'Faster report turnaround', detail: 'Teams reduce manual review time with AI-assisted extraction and summaries.' },
+  ];
+
+  const landingImages = {
+    hero: 'https://i.pinimg.com/736x/88/54/b5/8854b516add7ec7b3c25500b50ab29b1.jpg',
+    featurePrimary: 'https://i.pinimg.com/736x/e8/01/96/e801962029008e9886b916a49233f753.jpg',
+    featureSecondary: 'https://i.pinimg.com/736x/97/3d/53/973d536841b6319f4818bad1ea60b092.jpg',
+    recognition: 'https://i.pinimg.com/736x/13/70/fe/1370fe9628ba6a145935e625eba48f83.jpg',
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white relative overflow-hidden">
-      {/* Sophisticated dark gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-gray-950 to-black"></div>
-      <div className="absolute inset-0 bg-gradient-to-t from-blue-950/20 via-transparent to-slate-950/30"></div>
-      
-      {/* Advanced grid pattern with electric blue glow */}
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: `
-          linear-gradient(rgba(59, 130, 246, 0.15) 1px, transparent 1px), 
-          linear-gradient(90deg, rgba(59, 130, 246, 0.15) 1px, transparent 1px),
-          radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-          radial-gradient(circle at 75% 75%, rgba(34, 211, 238, 0.08) 0%, transparent 50%)
-        `,
-        backgroundSize: '60px 60px, 60px 60px, 800px 800px, 600px 600px'
-      }}></div>
-      
-      {/* Ambient lighting effects */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-cyan-500/8 rounded-full blur-3xl"></div>
+    <div ref={containerRef} className="min-h-screen bg-[#f7f8fb] text-slate-900">
+      <motion.nav
+        style={{ backgroundColor: `rgba(247,248,251,${navBg})` }}
+        className="fixed top-0 inset-x-0 z-50 border-b border-slate-200/70 backdrop-blur-xl"
+      >
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <button onClick={() => scrollTo('home')} className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+              <Activity className="w-4 h-4 text-sky-600" />
+            </div>
+            <span className="text-lg font-bold tracking-tight">Medaid</span>
+          </button>
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto border-b border-slate-800/50 backdrop-blur-xl">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex items-center space-x-3"
-        >
-            {/* Enhanced logo with electric glow */}
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/60 border border-blue-400/30 relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-cyan-400/20 rounded-lg blur-sm"></div>
-            <span className="text-xl font-bold text-white relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]">M</span>
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map(link => (
+              <button
+                key={link.id}
+                onClick={() => scrollTo(link.id)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                  activeSection === link.id
+                    ? 'text-slate-900 bg-white shadow-sm border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {link.label}
+              </button>
+            ))}
           </div>
-          <span className="text-2xl font-bold text-white drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]">Medaid</span>
-        </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="hidden md:flex space-x-12 text-sm font-medium"
-        >
-          <Link to="/features" className="text-gray-300 hover:text-blue-400 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)] relative">Features</Link>
-          <a href="#pricing" className="text-gray-300 hover:text-blue-400 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)] relative">Pricing</a>
-          <a href="#resources" className="text-gray-300 hover:text-blue-400 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)] relative">Resources</a>
-          <a href="#about" className="text-gray-300 hover:text-blue-400 transition-all duration-300 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.6)] relative">About</a>
-        </motion.div>
-
-        <motion.button
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          onClick={handleGetStarted}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 px-6 py-2.5 rounded-lg transition-all duration-300 text-sm font-semibold shadow-lg shadow-blue-600/60 hover:shadow-blue-500/80 border border-blue-500/30 hover:border-blue-400/50 relative group"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-400/20 rounded-lg blur-sm group-hover:blur-md transition-all duration-300"></div>
-          <span className="relative z-10 drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">Get started</span>
-        </motion.button>
-      </nav>
-
-      {/* Hero Section */}
-      <div className="relative z-10 max-w-7xl mx-auto px-8 py-20 pb-28">
-        {/* Multiple layered glowing effects */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-600/15 rounded-full blur-3xl"></div>
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-2xl"></div>
-        <div className="absolute top-32 left-1/2 -translate-x-1/2 w-64 h-64 bg-blue-400/20 rounded-full blur-xl"></div>
-        
-        <div className="text-center mb-20 relative">
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-5xl md:text-6xl lg:text-8xl font-bold mb-8 leading-tight tracking-tight"
-          >
-            <span className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]">Your AI assistant for</span><br />
-            <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-blue-500 text-transparent bg-clip-text relative">
-              <span className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-blue-400 to-blue-500 text-transparent bg-clip-text blur-sm">smarter healthcare.</span>
-              <span className="relative drop-shadow-[0_0_40px_rgba(59,130,246,0.8)]">smarter healthcare.</span>
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="text-xl md:text-2xl text-gray-300 mb-16 max-w-4xl mx-auto leading-relaxed font-light"
-          >
-            Harness the power of AI to streamline medical workflows, enhance patient
-            care, and boost your healthcare team's efficiency — all in one intelligent
-            platform.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-6"
-          >
-            <button onClick={handleGetStarted} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 px-10 py-5 rounded-xl text-lg font-semibold transition-all transform hover:scale-105 flex items-center gap-3 shadow-xl shadow-blue-600/60 hover:shadow-blue-500/80 border border-blue-400/30 hover:border-blue-300/50 relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-cyan-500/30 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
-              <span className="relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">Get started</span>
-              <ArrowRight className="w-5 h-5 relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/login')}
+              className="hidden md:block px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              Sign In
             </button>
-            <button className="flex items-center gap-3 px-10 py-5 rounded-xl text-lg font-semibold bg-slate-900/60 border border-slate-700/80 hover:bg-slate-800/60 hover:border-blue-500/50 transition-all backdrop-blur-sm relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-800/20 to-slate-700/20 rounded-xl blur-sm group-hover:blur-md transition-all duration-300"></div>
-              <Play className="w-5 h-5 text-blue-400 relative z-10 drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
-              <span className="relative z-10 text-gray-200">See it in Action</span>
+            <button
+              onClick={() => navigate('/signup')}
+              className="hidden md:flex px-5 py-2.5 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors items-center gap-2"
+            >
+              Get Started <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          </motion.div>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-slate-500 hover:text-slate-900"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
-        {/* Feature Cards Grid - Enhanced with Electric Glow */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-24">
-          {/* Smart Diagnostics Card */}
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-            className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-8 hover:border-blue-400/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/30 group relative overflow-hidden"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden border-t border-slate-200 bg-white/90 backdrop-blur-xl"
           >
-            {/* Subtle inner glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="flex items-start justify-between mb-6 relative z-10">
-              <h3 className="text-2xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">Smart Diagnostics</h3>
-              <Brain className="w-7 h-7 text-blue-400 group-hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.9)] transition-all duration-500 group-hover:text-blue-300" />
-            </div>
-            <p className="text-base text-gray-300 mb-6 relative z-10 leading-relaxed">
-              AI-powered diagnostic assistance and patient record analysis.
-            </p>
-            <div className="space-y-3 text-sm relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">AI symptom analysis</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Medical history insights</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Treatment recommendations</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Risk assessment</span>
+            <div className="px-6 py-4 space-y-1">
+              {navLinks.map(link => (
+                <button
+                  key={link.id}
+                  onClick={() => scrollTo(link.id)}
+                  className={`block w-full text-left px-4 py-3 text-sm font-medium rounded-lg ${
+                    activeSection === link.id ? 'text-slate-900 bg-slate-100' : 'text-slate-600'
+                  }`}
+                >
+                  {link.label}
+                </button>
+              ))}
+              <div className="pt-3 flex gap-3">
+                <button onClick={() => navigate('/login')} className="flex-1 py-2.5 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg">Sign In</button>
+                <button onClick={() => navigate('/signup')} className="flex-1 py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-lg">Get Started</button>
               </div>
             </div>
           </motion.div>
+        )}
+      </motion.nav>
 
-          {/* Patient Care Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.0 }}
-            className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-8 hover:border-cyan-400/60 transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/30 group relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="flex items-start justify-between mb-6 relative z-10">
-              <h3 className="text-2xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">Patient Care</h3>
-              <Heart className="w-7 h-7 text-cyan-400 group-hover:drop-shadow-[0_0_15px_rgba(34,211,238,0.9)] transition-all duration-500 group-hover:text-cyan-300" />
-            </div>
-            <p className="text-base text-gray-300 mb-6 relative z-10 leading-relaxed">
-              Comprehensive patient management and care coordination.
-            </p>
-            <div className="space-y-3 text-sm relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] group-hover:shadow-[0_0_12px_rgba(34,211,238,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Patient monitoring</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] group-hover:shadow-[0_0_12px_rgba(34,211,238,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Care plan management</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] group-hover:shadow-[0_0_12px_rgba(34,211,238,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Medication tracking</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] group-hover:shadow-[0_0_12px_rgba(34,211,238,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Appointment scheduling</span>
-              </div>
-            </div>
-          </motion.div>
+      <section ref={homeRef} id="home" className="relative pt-28 pb-20 px-6 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(14,165,233,0.12),transparent_60%)]" />
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="rounded-[2rem] border border-white bg-gradient-to-r from-sky-100/80 to-indigo-100/80 p-10 md:p-14 shadow-sm relative overflow-hidden">
+            <div className="absolute -top-10 -right-12 w-52 h-52 rounded-full bg-sky-300/20 blur-2xl" />
+            <div className="absolute -bottom-8 -left-8 w-56 h-56 rounded-full bg-indigo-300/20 blur-2xl" />
 
-          {/* Health Analytics Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.1 }}
-            className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-8 hover:border-blue-400/60 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/30 group relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="flex items-start justify-between mb-6 relative z-10">
-              <h3 className="text-2xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">Health Analytics</h3>
-              <BarChart3 className="w-7 h-7 text-blue-400 group-hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.9)] transition-all duration-500 group-hover:text-blue-300" />
+            <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-slate-200 px-4 py-1.5 text-xs text-slate-600 mb-6">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                  AI-powered care coordination for modern clinics
+                </div>
+
+                <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05] text-slate-900">
+                  Innovative healthcare technology
+                  <span className="block text-slate-600">with care for every patient.</span>
+                </h1>
+                <p className="mt-6 text-slate-600 text-lg max-w-xl">
+                  Medaid helps patients and clinicians move faster from symptoms to clarity using triage intelligence, report analysis, and guided next steps.
+                </p>
+
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <button onClick={() => navigate('/signup')} className="px-6 py-3 rounded-full bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors inline-flex items-center justify-center gap-2">
+                    Explore Medaid <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => scrollTo('features')} className="px-6 py-3 rounded-full border border-slate-300 text-slate-700 text-sm font-medium hover:bg-white transition-colors">
+                    See key capabilities
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-200 p-3 shadow-sm">
+                  <img
+                    src={landingImages.hero}
+                    alt="Medaid healthcare innovation visual"
+                    className="w-full h-36 object-cover rounded-2xl"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+                  <div className="text-xs text-slate-500 mb-1">Today with Medaid</div>
+                  <div className="text-3xl font-semibold">1.5k+</div>
+                  <p className="text-sm text-slate-600 mt-1">satisfied patients received faster guidance</p>
+                </div>
+                <div className="bg-slate-900 text-white rounded-3xl p-5 shadow-sm">
+                  <div className="text-xs text-slate-300 mb-2">Clinical confidence</div>
+                  <div className="text-2xl font-semibold">99.2% report extraction reliability</div>
+                </div>
+              </div>
             </div>
-            <p className="text-base text-gray-300 mb-6 relative z-10 leading-relaxed">
-              Advanced analytics and reporting for better healthcare outcomes.
-            </p>
-            <div className="space-y-3 text-sm relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Performance metrics</span>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+            {['98 care units', '24/7 monitoring', 'Certified clinicians', 'Biotech-ready workflows'].map((chip) => (
+              <div key={chip} className="rounded-full bg-white border border-slate-200 px-4 py-2 text-sm text-slate-700 text-center">
+                {chip}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Outcome tracking</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Predictive analytics</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)] group-hover:shadow-[0_0_12px_rgba(59,130,246,1)] transition-all duration-300"></div>
-                <span className="text-gray-200 font-medium">Custom reports</span>
-              </div>
-            </div>
-          </motion.div>
+            ))}
+          </div>
         </div>
-      </div>
 
-        {/* Features Section with Advanced Central Diagram */}
-      <div className="relative py-24 mt-16 border-t border-slate-800/50 bg-gradient-to-b from-slate-950/50 to-gray-950">
-        <div className="max-w-7xl mx-auto px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <h2 className="text-5xl md:text-6xl font-bold mb-6 text-white tracking-tight">
-              Revolutionize Your <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_30px_rgba(59,130,246,0.6)]">Healthcare Practice</span>
-            </h2>
-            <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-              Streamline operations, enhance patient outcomes, and embrace the future of medicine with
-              AI-driven insights and intelligent automation.
-            </p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="flex justify-center mt-10">
+          <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+            <ChevronDown className="w-5 h-5 text-slate-400" />
           </motion.div>
+        </motion.div>
+      </section>
 
-{/* Central Image Section */}
-<div className="relative w-full flex items-center justify-center pt-4 pb-20 md:pb-28">
-  <motion.img
-    src="/images/centralImage.png"
-    alt="MedAid AI Healthcare Platform"
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 1 }}
-    className="w-[150vw] max-w-[1200px] object-contain"
-  />
-</div>
+      <section ref={featuresRef} id="features" className="relative z-10 py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-3">Solutions</p>
+            <h2 className="text-4xl md:text-5xl font-semibold leading-tight">Explore our key Medaid services</h2>
+            <p className="text-slate-600 mt-4 max-w-2xl mx-auto">Purpose-built tools that improve patient understanding, clinician efficiency, and quality of care.</p>
+          </div>
 
-          {/* Enhanced Medical Insights Dashboard */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-10 mb-16 shadow-2xl shadow-blue-500/20 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-cyan-500/5 to-purple-500/5 rounded-3xl"></div>
-            <h3 className="text-3xl font-bold mb-8 flex items-center gap-4 text-white relative z-10">
-              <BarChart3 className="w-8 h-8 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]" />
-              <span className="drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">Medical Insights Dashboard</span>
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 relative z-10">
-              <div className="text-center bg-slate-800/30 rounded-2xl p-6 border border-slate-700/50">
-                <div className="text-5xl font-bold text-blue-400 mb-3 drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">98%</div>
-                <div className="text-sm text-gray-300 mb-2 font-medium">Diagnostic Accuracy</div>
-                <CheckCircle className="w-6 h-6 text-blue-400 mx-auto drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-              </div>
-              <div className="text-center bg-slate-800/30 rounded-2xl p-6 border border-slate-700/50">
-                <div className="text-5xl font-bold text-green-400 mb-3 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]">45%</div>
-                <div className="text-sm text-gray-300 mb-2 font-medium">Faster Treatment</div>
-                <TrendingUp className="w-6 h-6 text-green-400 mx-auto drop-shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
-              </div>
-              <div className="text-center bg-slate-800/30 rounded-2xl p-6 border border-slate-700/50">
-                <div className="text-5xl font-bold text-cyan-400 mb-3 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]">10k+</div>
-                <div className="text-sm text-gray-300 mb-2 font-medium">Patients Served</div>
-                <Users className="w-6 h-6 text-cyan-400 mx-auto drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-              </div>
-              <div className="text-center bg-slate-800/30 rounded-2xl p-6 border border-slate-700/50">
-                <div className="text-5xl font-bold text-purple-400 mb-3 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)]">24/7</div>
-                <div className="text-sm text-gray-300 mb-2 font-medium">AI Support</div>
-                <MessageSquare className="w-6 h-6 text-purple-400 mx-auto drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {offerings.map((item, index) => {
+              const Icon = item.icon;
+              const cardImage = index % 2 === 0 ? landingImages.featurePrimary : landingImages.featureSecondary;
+              return (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.08 }}
+                  className="rounded-3xl bg-white border border-slate-200 p-7 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="mb-5 h-36 rounded-2xl overflow-hidden border border-slate-200">
+                    <img
+                      src={cardImage}
+                      alt={`${item.title} illustration`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+                    <Icon className="w-6 h-6 text-sky-700" />
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-3">{item.title}</h3>
+                  <p className="text-slate-600 leading-relaxed">{item.description}</p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+            {[
+              { icon: Users, text: 'Patient-ready summaries' },
+              { icon: Shield, text: 'Secure health records' },
+              { icon: HeartPulse, text: 'Outcome-focused workflows' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.text} className="rounded-2xl bg-white border border-slate-200 px-5 py-4 flex items-center gap-3">
+                  <Icon className="w-5 h-5 text-slate-500" />
+                  <span className="text-slate-700 text-sm font-medium">{stat.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section ref={aboutRef} id="about" className="relative z-10 py-20 px-6">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
+          <div>
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">Our awards & recognition</h2>
+            <p className="text-slate-600 max-w-lg">Medaid is recognized for improving access to clinical clarity and creating a better care experience for both patients and providers.</p>
+            <div className="mt-6 rounded-3xl border border-slate-200 bg-gradient-to-b from-sky-100/60 to-white p-6 shadow-sm">
+              <div className="h-64 rounded-2xl border border-white overflow-hidden relative flex items-end p-5">
+                <img
+                  src={landingImages.recognition}
+                  alt="Medaid award and recognition visual"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/35 to-transparent" />
+                <button onClick={() => navigate('/signup')} className="rounded-full bg-white border border-slate-200 px-5 py-2 text-sm font-medium hover:bg-slate-50 transition-colors">
+                  Learn more
+                </button>
               </div>
             </div>
-          </motion.div>
-        </div>
-      </div>
+          </div>
 
-      {/* Enhanced CTA Section */}
-      <div className="relative py-24 bg-gradient-to-b from-gray-950 to-black border-t border-slate-800/50">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-950/20 via-transparent to-cyan-950/20"></div>
-        <div className="max-w-5xl mx-auto px-8 text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-5xl md:text-6xl font-bold mb-8 text-white tracking-tight">
-              Ready to Transform 
-              <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-blue-500 text-transparent bg-clip-text drop-shadow-[0_0_30px_rgba(59,130,246,0.6)]"> Healthcare?</span>
-            </h2>
-            <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Join thousands of healthcare professionals already using Medaid to deliver
-              better patient care with the power of artificial intelligence.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <button className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white px-10 py-5 rounded-xl text-lg font-semibold transition-all transform hover:scale-105 flex items-center gap-3 shadow-xl shadow-blue-500/60 border border-blue-400/30 relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-blue-400/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
-                <span className="relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">Start Free Trial</span>
-                <ArrowRight className="w-5 h-5 relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
-              </button>
-              <button className="bg-slate-900/60 hover:bg-slate-800/60 border border-slate-700 hover:border-blue-500/50 px-10 py-5 rounded-xl text-lg font-semibold transition-all backdrop-blur-sm relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-800/20 to-slate-700/20 rounded-xl blur-sm group-hover:blur-md transition-all duration-300"></div>
-                <span className="relative z-10 text-gray-200">Schedule Demo</span>
-              </button>
-            </div>
-          </motion.div>
+          <div className="space-y-3">
+            {achievements.map((item, index) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="rounded-2xl bg-white border border-slate-200 px-5 py-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-lg">{item.title}</h3>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
+
+      <footer className="relative z-10 border-t border-slate-200 py-12 px-6 bg-white/70">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-slate-900 flex items-center justify-center">
+              <Activity className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-sm font-semibold">Medaid</span>
+          </div>
+          <div className="flex items-center gap-8 text-xs text-slate-500">
+            <button onClick={() => scrollTo('home')} className="hover:text-slate-800 transition-colors">Home</button>
+            <button onClick={() => scrollTo('features')} className="hover:text-slate-800 transition-colors">Features</button>
+            <button onClick={() => scrollTo('about')} className="hover:text-slate-800 transition-colors">About</button>
+            <button onClick={() => navigate('/login')} className="hover:text-slate-800 transition-colors">Sign In</button>
+          </div>
+          <p className="text-xs text-slate-500">© 2026 Medaid. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };

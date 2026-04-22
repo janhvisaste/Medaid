@@ -14,13 +14,19 @@ import {
   User,
   Stethoscope,
   Brain,
-  Clock
+  Clock,
+  FileText,
+  Eye,
+  Loader2
 } from 'lucide-react';
 import authService from '../../services/authService';
 
 interface ReportDetails {
   id: number;
   file_name: string;
+  file?: string;
+  file_url?: string;
+  file_type?: string;
   upload_date: string;
   extracted_text: string;
   structured_data: {
@@ -57,21 +63,63 @@ const ReportDetailsView: React.FC<ReportDetailsViewProps> = ({ reportId, theme, 
   const [report, setReport] = useState<ReportDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReportDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId]);
 
+  // Cleanup blob URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const fetchFilePreview = async () => {
+    try {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      
+      const token = authService.getToken();
+      const response = await fetch(`http://127.0.0.1:8001/api/medical-reports/${reportId}/download/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+      } else {
+        setPreviewError('Failed to load file preview');
+      }
+    } catch (error) {
+      console.error('Error fetching file preview:', error);
+      setPreviewError('Error loading preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const fetchReportDetails = async () => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/medical-reports/${reportId}/`, {
+      const response = await fetch(`http://127.0.0.1:8001/api/medical-reports/${reportId}/`, {
         headers: authService.getAuthHeaders(),
       });
 
       if (response.ok) {
         const data = await response.json();
         setReport(data);
+        
+        // Fetch file preview after report details
+        fetchFilePreview();
         
         // If no AI analysis exists, request one
         if (!data.ai_analysis) {
@@ -91,7 +139,7 @@ const ReportDetailsView: React.FC<ReportDetailsViewProps> = ({ reportId, theme, 
     setAnalyzing(true);
     try {
       // Send extracted text and structured data to LLM for elaborate analysis
-      const response = await fetch('http://127.0.0.1:8000/api/triage/analyze-report/', {
+      const response = await fetch('http://127.0.0.1:8001/api/triage/analyze-report/', {
         method: 'POST',
         headers: authService.getAuthHeaders(),
         body: JSON.stringify({
@@ -262,6 +310,77 @@ const ReportDetailsView: React.FC<ReportDetailsViewProps> = ({ reportId, theme, 
                   })}
                 </p>
               </div>
+            </div>
+          </motion.div>
+
+          {/* Document Preview */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className={`${theme === 'dark' ? 'bg-[#1a1a1a] border-gray-800' : 'bg-white border-gray-200'} border rounded-xl p-6`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Eye className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+              <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                Document Preview
+              </h2>
+            </div>
+            
+            <div className={`${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50'} rounded-lg overflow-hidden min-h-[200px]`}>
+              {previewLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 text-purple-500 animate-spin mb-4" />
+                  <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Loading preview...</p>
+                </div>
+              ) : previewError ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <FileText className={`w-16 h-16 mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{previewError}</p>
+                  <button
+                    onClick={fetchFilePreview}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Retry Loading Preview
+                  </button>
+                </div>
+              ) : previewUrl ? (
+                report.file_type?.includes('image') || report.file_name?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ? (
+                  <div className="flex justify-center p-4">
+                    <img 
+                      src={previewUrl} 
+                      alt={report.file_name}
+                      className="max-w-full max-h-[500px] object-contain rounded-lg"
+                    />
+                  </div>
+                ) : report.file_type?.includes('pdf') || report.file_name?.toLowerCase().endsWith('.pdf') ? (
+                  <div className="relative">
+                    <iframe
+                      src={previewUrl}
+                      className="w-full h-[500px] rounded-lg"
+                      title={report.file_name}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className={`w-16 h-16 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
+                    <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Preview not available for this file type</p>
+                    <a
+                      href={previewUrl}
+                      download={report.file_name}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Download className="w-5 h-5" />
+                      Download to View
+                    </a>
+                  </div>
+                )
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <FileText className={`w-16 h-16 mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>No preview available</p>
+                </div>
+              )}
             </div>
           </motion.div>
 

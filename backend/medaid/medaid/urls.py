@@ -39,6 +39,7 @@ urlpatterns = [
         
         # User endpoints
         path('auth/me/', views.get_current_user, name='current_user'),
+        path('auth/update/', views.update_user, name='update_user'),
         path('profile/', views.get_user_profile, name='get_profile'),
         path('profile/update/', views.update_user_profile, name='update_profile'),
         path('profile/update-history/', views.update_medical_history, name='update_medical_history'),
@@ -46,7 +47,11 @@ urlpatterns = [
         # Triage & AI Assessment endpoints
         path('triage/assess/', views.assess_symptoms, name='assess_symptoms'),
         path('triage/history/', views.get_triage_history, name='triage_history'),
+        path('triage/analyze-report/', views.analyze_report_local_pipeline, name='triage_analyze_report'),
         path('reports/analyze/', views.analyze_medical_report, name='analyze_report'),
+        path('reports/analyze-detailed/', views.analyze_report_detailed, name='analyze_report_detailed'),
+        path('reports/analyze-local/', views.analyze_report_local_pipeline, name='analyze_report_local'),
+        path('reports/analysis/<int:report_id>/download/', views.download_report_analysis, name='download_report_analysis'),
         path('health-passport/', views.get_health_passport, name='health_passport'),
         
         # Facility & Recommendations endpoints
@@ -71,6 +76,12 @@ urlpatterns = [
         path('clinician/notes/', views.add_clinician_note, name='add_clinician_note'),
         path('clinician/alerts/', views.clinician_alerts, name='clinician_alerts'),
         path('clinician/alerts/<int:alert_id>/mark-read/', views.mark_alert_read, name='mark_alert_read'),
+        
+        # Persistent Chat endpoints
+        path('chat/conversations/', views.chat_conversations_list, name='chat_conversations_list'),
+        path('chat/conversations/<int:conversation_id>/', views.chat_conversation_detail, name='chat_conversation_detail'),
+        path('chat/conversations/<int:conversation_id>/messages/', views.chat_send_message, name='chat_send_message'),
+        path('chat/conversations/<int:conversation_id>/messages/list/', views.chat_get_messages, name='chat_get_messages'),
         
         # Router URLs
         path('', include(router.urls)),

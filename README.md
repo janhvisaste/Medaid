@@ -1,295 +1,123 @@
-# 🏥 MedAid - AI-Powered Medical Triage System
+# 🏥 MedAid
+**An AI-Powered Medical Triage Platform**
 
-A complete full-stack medical triage and patient monitoring system with AI-powered symptom assessment, clinician dashboard, and comprehensive health tracking.
+## 🛑 Problem Statement (Why this exists)
+In modern healthcare systems, the initial patient triage process is often inefficient, leading to critical bottlenecks. 
+- **Patients** face long wait times, anxiety regarding their symptoms, and a lack of immediate, reliable guidance.
+- **Clinicians and Hospitals** are overwhelmed by unprioritized patient intake, resulting in fatigue and potential misallocation of resources where high-risk patients aren't identified quickly enough.
+- **Systematic Friction:** Traditional intake forms fail to capture nuanced medical history dynamically, leaving doctors without comprehensive context before the consultation even begins.
 
-## ✨ Features
+## 💡 Solution Overview
+**MedAid** bridges the gap between patient uncertainty and clinical care by providing an intelligent, agent-driven preliminary assessment tool. 
 
-### For Patients
-- 🔍 **AI-Powered Symptom Assessment** - Intelligent triage using Google Gemini AI
-- 📝 **Multi-Step Consultation** - Guided symptom collection with clarifying questions
-- 📋 **Medical History Management** - Track 15+ medical conditions with notes
-- 📄 **PDF Reports** - Download detailed assessment reports and health passport
-- 🥗 **Dietary Recommendations** - Personalized nutrition advice based on conditions
-- 🏥 **Facility Finder** - Locate nearby healthcare facilities
-- 📊 **Assessment History** - View all past consultations and results
+At its core, it leverages **Large Language Models (Google Gemini)** in a carefully orchestrated pipeline to perform dynamic symptom extraction and risk stratification. Unlike static symptom checkers, MedAid conducts a reactive, multi-turn consultation—asking clarifying questions based on previous answers, generating personalized dietary/health recommendations, and producing a structured clinical report.
 
-### For Clinicians
-- 👥 **Patient Dashboard** - Real-time monitoring of assigned patients
-- 🚨 **Priority Management** - Track emergency, high-risk, and medium-risk patients
-- 🔍 **Advanced Filters** - Search and filter patients by risk level, status, date
-- 📝 **Clinical Notes** - Add private notes to patient records
-- 🔔 **Alert System** - Get notified about critical cases
-- 📈 **Statistics** - View dashboard metrics and patient counts
+**Key Idea:** An LLM-powered Multi-Step Triage Agent equipped with an automated Clinical Report Generation Pipeline for quick and accurate assessment.
+
+## ✨ Features (Core Capabilities)
+- **🧠 AI-Powered Triage Engine:** Dynamic, multi-step symptom assessment via Gemini AI.
+- **🛡️ Risk Stratification:** Automatically categorizes patient risk signals (Emergency, High, Medium, Low) for immediate awareness.
+- **📝 Contextual Medical Profiles:** Tracks 15+ complex medical conditions and integrates them seamlessly into AI reasoning.
+- **📄 Automated Health Reports:** On-the-fly PDF generation containing standardized patient intake data and AI analysis.
+- **🥗 Actionable Health Insights:** Condition-specific personalized dietary and lifestyle recommendations.
+- **🏥 Geo-Location Integration:** Find nearby healthcare facilities for urgent care.
+
+## 🏗️ Architecture / How It Works
+
+### Flow of System
+1. **Patient Intake:** User authenticates and enters initial symptoms via the React frontend.
+2. **Dynamic Consultation:** The Frontend queries the Django API, which orchestrates prompt chains using the Gemini API. The AI engine decides whether to ask clarifying questions or conclude the assessment.
+3. **Data Normalization:** The backend formats AI outputs into structured JSON containing possible conditions, severity, and recommendations.
+4. **Storage & Trigger:** Results are committed to PostgreSQL. A risk profile is generated.
+5. **Final Output:** A comprehensive PDF Health Passport is produced, summarizing the symptoms, severity, and AI analysis for the patient to share with their healthcare provider.
+
+### System Diagram
+```mermaid
+graph TD;
+    A[Patient UI React/TS] -->|Initial Symptoms| B(Django REST API);
+    B -->|Context + Prompt| C{Gemini AI Engine};
+    C -->|Clarifying Questions| B;
+    B -->|Response| A;
+    C -->|Final Assessment JSON| D[(PostgreSQL)];
+    D -->|PDF Generation| F[ReportLab Service];
+    F -->|Downloadable Passport| A;
+```
 
 ## 🛠️ Tech Stack
-
-### Backend
-- **Framework:** Django 5.2.4 with Django REST Framework
+- **Frontend:** React 19, TypeScript, Tailwind CSS, Framer Motion, Lenis (Smooth Scrolling), React Router v7, Axios, Lucide React
+- **Backend Framework:** Django 5.2, Django REST Framework (DRF)
 - **Database:** PostgreSQL
-- **Authentication:** JWT with SimpleJWT
-- **AI:** Google Gemini API via `google-genai`
-- **PDF Generation:** ReportLab
-- **CORS:** django-cors-headers
+- **AI & Integrations:** Google Gemini API (`google-genai`)
+- **Authentication:** JWT (JSON Web Tokens) via SimpleJWT
+- **Utilities:** ReportLab (Automated PDF Generation), django-cors-headers
 
-### Frontend
-- **Framework:** React 19.1.1 with TypeScript
-- **Styling:** Tailwind CSS
-- **Animations:** Framer Motion
-- **HTTP Client:** Axios
-- **Icons:** Lucide React
-- **Routing:** React Router v7
+## 📦 Installation & Setup
 
-## 📁 Project Structure
+**Prerequisites:** Python 3.10+, Node.js 16+, and a Gemini API key.
 
-```
-medaid-full stack/
-├── backend/                    # Django backend
-│   ├── venv/                  # Python virtual environment
-│   ├── requirements.txt       # Python dependencies
-│   └── medaid/
-│       ├── api/               # API app
-│       │   ├── models.py      # Database models
-│       │   ├── views.py       # API endpoints
-│       │   ├── serializers.py # DRF serializers
-│       │   ├── triage_engine.py # AI triage logic
-│       │   └── report_generator.py # PDF generation
-│       └── medaid/            # Django settings
-│           ├── settings.py
-│           └── urls.py
-├── frontend/                   # React frontend
-│   ├── package.json
-│   └── src/
-│       ├── components/        # UI components
-│       │   ├── Auth/         # Login/Signup
-│       │   ├── Consultation/ # Assessment wizard
-│       │   ├── Clinician/    # Clinician dashboard
-│       │   ├── Profile/      # Medical history
-│       │   ├── Reports/      # PDF downloads
-│       │   └── Results/      # Dietary advice
-│       ├── services/
-│       │   └── apiService.ts # API integration
-│       └── App.tsx
-└── scripts/                    # Utility scripts
-    ├── activate-venv.ps1      # Activate virtual environment
-    ├── start-backend.ps1      # Start Django server
-    └── start-frontend.ps1     # Start React server
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.10+
-- Node.js 16+
-- PostgreSQL
-- Google Gemini API key
-
-### Option A: Use Convenience Scripts (Windows)
-
-```powershell
-# 1. Activate virtual environment
-.\scripts\activate-venv.ps1
-
-# 2. Start backend (in one terminal)
-.\scripts\start-backend.ps1
-
-# 3. Start frontend (in another terminal)
-.\scripts\start-frontend.ps1
-```
-
-### Option B: Manual Setup
-
-#### 1. Backend Setup
-
+1. **Clone the repository:**
 ```bash
-cd backend/medaid
+git clone https://github.com/yourusername/medaid.git
+cd medaid
+```
 
-# Activate virtual environment
-# On Windows:
-..\venv\Scripts\activate
-# On Linux/Mac:
-source ../venv/bin/activate
+2. **Environment Variables (.env Setup):**
+You must configure your API keys for the AI engine to function correctly. 
 
-# Install dependencies (if not already installed)
+- **Create the file:** Navigate to the `backend/medaid` directory and create a new file named exactly `.env`.
+- **Get a Gemini API Key:**
+  1. Go to [Google AI Studio](https://aistudio.google.com/).
+  2. Sign in with your Google account.
+  3. Click "Get API key" and create a new key.
+- **Configure the file:** Open the `.env` file and add the following lines (replace the placeholder with your actual key):
+```env
+GOOGLE_API_KEY=your_gemini_api_key_here
+
+# (Optional) If using a customized local PostgreSQL setup:
+# DB_NAME=medaid
+# DB_USER=postgres
+# DB_PASSWORD=your_password
+# DB_HOST=localhost
+# DB_PORT=5432
+```
+
+3. **Backend Setup:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Or venv\Scripts\activate on Windows
 pip install -r requirements.txt
-
-# Create .env file
-echo "DB_NAME=medaid_db
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-GOOGLE_API_KEY=your_gemini_api_key" > .env
-
-# Run migrations
+cd medaid
 python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Start server
 python manage.py runserver
 ```
 
-Backend runs at: **http://localhost:8000**
-
-#### 2. Frontend Setup
-
+4. **Frontend Setup:**
 ```bash
+# In a new terminal window
 cd frontend
-
-# Install dependencies
 npm install
-
-# Create .env file
-echo "REACT_APP_API_URL=http://localhost:8000/api" > .env
-
-# Start development server
 npm start
 ```
+The application will be available at `http://localhost:3000` and the API at `http://127.0.0.1:8000`.
 
-Frontend runs at: **http://localhost:3000**
+*(Alternatively, you can use the `start-medaid.sh` / `start-medaid.ps1` scripts for one-click startup)*
 
-## 📖 Documentation
+## 📖 Usage
 
-- **[QUICK_START.md](QUICK_START.md)** - Quick setup guide
-- **[SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)** - Detailed installation steps
-- **[BACKEND_FEATURES_COMPLETE.md](BACKEND_FEATURES_COMPLETE.md)** - Backend API reference
-- **[FRONTEND_IMPLEMENTATION_COMPLETE.md](FRONTEND_IMPLEMENTATION_COMPLETE.md)** - Frontend components guide
-- **[CLINICIAN_BACKEND_COMPLETE.md](CLINICIAN_BACKEND_COMPLETE.md)** - Clinician features documentation
-- **[SETUP_AND_CONNECTIONS_GUIDE.md](SETUP_AND_CONNECTIONS_GUIDE.md)** - Integration guide
+### Example Patient Flow:
+1. **Input:** Describe your symptoms in the prompt box: 
+   > *"I've had a severe persistent headache for 3 days, accompanied by minor nausea and sensitivity to light."*
+2. **Interaction:** Respond to the AI's follow-up questions dynamically determining the exact onset time and intensity.
+3. **Output:** Once complete, view your dietary recommendations and download your structured PDF Health Passport.
 
-## 🔐 Authentication
+## 🧠 Key Learnings / Challenges
 
-The system uses JWT authentication:
-- Access tokens expire in 60 minutes
-- Refresh tokens expire in 7 days
-- Automatic token refresh on frontend
+- **Prompt Engineering & Hallucination Prevention (🔥):** The most critical challenge was guaranteeing the AI didn't formally *diagnose* patients or offer dangerous medical advice. This required rigorous instruction tuning, forcing the model to act strictly as a *triage data-extraction agent* rather than an authoritative physician.
+- **State Management Across Multi-Turn LLM Calls:** Retaining session context between the React frontend and stateless Django backend for an ongoing assessment conversation was complex. We resolved this by carefully serializing and appending conversation history in the database to ensure the AI maintained context without exceeding context windows.
+- **PDF Generation Nuances:** Building structured, visually appealing, and dynamic PDF reports directly from the backend using `ReportLab` required meticulous coordinate mapping and text-wrapping logic.
 
-**Default roles:**
-- `patient` - Standard users
-- `clinician` - Healthcare providers
-- `admin` - System administrators
-
-## 📡 API Endpoints
-
-### Patient Endpoints
-- `POST /api/auth/signup/` - User registration
-- `POST /api/auth/login/` - User login
-- `POST /api/triage/assess/` - Symptom assessment
-- `GET /api/triage/history/` - Assessment history
-- `POST /api/consultation/start/` - Start consultation
-- `GET /api/profile/` - Get user profile
-- `PATCH /api/profile/update-history/` - Update medical history
-- `GET /api/recommendations/dietary/` - Get dietary advice
-- `GET /api/facilities/nearby/` - Find facilities
-- `GET /api/reports/download/<id>/` - Download PDF
-
-### Clinician Endpoints
-- `GET /api/clinician/stats/` - Dashboard statistics
-- `GET /api/clinician/patients/` - Patient list with filters
-- `POST /api/clinician/assign-patient/` - Assign patient
-- `PATCH /api/clinician/assignments/<id>/status/` - Update status
-- `POST /api/clinician/notes/` - Add clinical note
-- `GET /api/clinician/alerts/` - Get alerts
-
-## 🗄️ Database Models
-
-### Core Models
-- `User` - Custom user with role field
-- `UserProfile` - Extended user information
-- `TriageRecord` - Assessment results
-- `ConsultationSession` - Multi-step consultation data
-- `MedicalReport` - Uploaded medical documents
-
-### Clinician Models
-- `PatientAssignment` - Clinician-patient relationships
-- `ClinicianNote` - Clinical notes on patients
-- `ClinicianAlert` - Alert notifications
-
-### Additional Models
-- `Facility` - Healthcare facilities
-- `Recommendation` - Patient recommendations
-- `PossibleCondition` - AI-detected conditions
-
-## 🎨 Frontend Components
-
-### Main Components
-- `ConsultationWizard` - 4-step assessment flow
-- `MedicalHistoryForm` - Checkbox-based history input
-- `DietaryAdvice` - Condition-specific dietary guidance
-- `PDFDownload` - Report download functionality
-- `ClinicianDashboard` - Patient monitoring interface
-- `Navigation` - Responsive navigation bar
-
-## 🧪 Testing
-
-### Backend
-```bash
-cd backend/medaid
-python manage.py test
-```
-
-### Frontend
-```bash
-cd frontend
-npm test
-```
-
-## 📦 Deployment
-
-See [SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md) for production deployment guide.
-
-**Production checklist:**
-- [ ] Set `DEBUG=False` in Django settings
-- [ ] Configure production `SECRET_KEY`
-- [ ] Setup Gunicorn/Nginx
-- [ ] Configure SSL certificates
-- [ ] Setup production database
-- [ ] Build frontend: `npm run build`
-- [ ] Configure CORS for production domain
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/AmazingFeature`
-3. Commit changes: `git commit -m 'Add AmazingFeature'`
-4. Push to branch: `git push origin feature/AmazingFeature`
-5. Open Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 👥 Team
-
-- **Backend Development** - Django REST API, AI Integration, Database Design
-- **Frontend Development** - React UI, Component Architecture, API Integration
-- **AI/ML** - Triage Engine, Symptom Analysis, Recommendation System
-
-## 📞 Support
-
-For issues and questions:
-- Create an issue in the repository
-- Check existing documentation
-- Review API endpoint documentation
-
-## 🎉 Status
-
-**Current Version:** 1.0.0  
-**Status:** ✅ Production Ready
-
-**Completed Features:**
-- ✅ User authentication system
-- ✅ AI-powered triage engine
-- ✅ Multi-step consultation flow
-- ✅ Medical history management
-- ✅ PDF report generation
-- ✅ Dietary recommendations
-- ✅ Facility finder
-- ✅ Clinician dashboard
-- ✅ Patient monitoring system
-- ✅ Real-time statistics
-
----
-
-**Built with ❤️ for better healthcare accessibility**
+## 📌 Future Improvements
+- **Memory & Latency Optimization:** Implement Semantic Caching (e.g., Redis) to bypass the LLM for identical/routine symptom queries, heavily reducing API latency and LLM costs.
+- **Multi-Modal Analysis:** Enable secure image uploads so patients can provide photos of visual symptoms (rashes, swelling), fully leveraging Gemini's vision capabilities.
+- **FHIR Interoperability:** Standardize and export patient records in FHIR (Fast Healthcare Interoperability Resources) format for direct and seamless EHR integration.

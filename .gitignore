@@ -1,16 +1,38 @@
-#Ignore vscode AI rules
-.github\instructions\codacy.instructions.md
-
-full-stack/
-backend/venv/
 # Environment variables
 .env
 
 # Python
 __pycache__/
 *.pyc
+*.pyo
 venv/
+.pytest_cache/
 
 # Node
 node_modules/
+build/
 
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Database
+db.sqlite3
+
+# Caches
+.facility_cache/
+.reco_cache/
+.qodo/
+
+# Temp
+tmp_folder/
+tmp_grep.txt
+
+# Media uploads
+media/

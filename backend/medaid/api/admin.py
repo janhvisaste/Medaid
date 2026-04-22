@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, UserProfile, MedicalReport
+from .models import User, UserProfile, MedicalReport, ChatConversation, ChatMessage
 
 
 class UserProfileInline(admin.StackedInline):
@@ -55,4 +55,44 @@ class MedicalReportAdmin(admin.ModelAdmin):
         ('Timestamps', {'fields': ('upload_date', 'updated_at'), 'classes': ('collapse',)}),
     )
     ordering = ('-upload_date',)
+
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    fields = ('role', 'content', 'tokens_used', 'created_at')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(ChatConversation)
+class ChatConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'title', 'is_active', 'total_tokens_used', 'last_activity', 'created_at')
+    list_filter = ('is_active', 'created_at', 'last_activity')
+    search_fields = ('user__email', 'title')
+    readonly_fields = ('created_at', 'updated_at', 'last_activity')
+    fieldsets = (
+        ('Conversation Info', {'fields': ('user', 'title', 'is_active')}),
+        ('Context Management', {'fields': ('total_tokens_used',)}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at', 'last_activity'), 'classes': ('collapse',)}),
+    )
+    inlines = [ChatMessageInline]
+    ordering = ('-last_activity',)
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'role', 'content_preview', 'tokens_used', 'created_at')
+    list_filter = ('role', 'created_at')
+    search_fields = ('content', 'conversation__title', 'conversation__user__email')
+    readonly_fields = ('created_at',)
+    fieldsets = (
+        ('Message Info', {'fields': ('conversation', 'role', 'content')}),
+        ('Metadata', {'fields': ('metadata', 'tokens_used')}),
+        ('Timestamps', {'fields': ('created_at',)}),
+    )
+    ordering = ('-created_at',)
+    
+    def content_preview(self, obj):
+        return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content
+    content_preview.short_description = 'Content Preview'
 

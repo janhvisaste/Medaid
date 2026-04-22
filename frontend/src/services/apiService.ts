@@ -1,6 +1,6 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -107,10 +107,11 @@ interface ConsultationSession {
   completed_at?: string;
 }
 
-interface Facility {
+export interface Facility {
   name: string;
   address: string;
   phone?: string;
+  maps_url?: string;
   facility_type: string;
   distance_km?: number;
   rating?: number;
@@ -125,6 +126,73 @@ interface DietaryRecommendations {
     general: string[];
     [key: string]: string[];
   };
+}
+
+interface AbnormalFinding {
+  test_name: string;
+  abbreviation?: string;
+  value: string;
+  unit: string;
+  status: string;
+  reference_range: string;
+  category: string;
+  source: string;
+  severity?: string;
+}
+
+interface ExtractionSummary {
+  total_reports: number;
+  total_tests: number;
+  abnormal_count: number;
+  critical_findings: AbnormalFinding[];
+  all_abnormals: AbnormalFinding[];
+}
+
+interface TestResult {
+  test_name: string;
+  abbreviation?: string;
+  result_value: string;
+  result_flag?: string;
+  unit: string;
+  reference_range: {
+    low?: string;
+    high?: string;
+    text?: string;
+  };
+  is_abnormal: boolean;
+  category?: string;
+}
+
+interface ExtractedReport {
+  _source_file: string;
+  report_metadata?: {
+    lab_name?: string;
+    report_type?: string;
+    report_date?: string;
+    patient_id?: string;
+    patient_name?: string;
+    patient_age?: number;
+    patient_gender?: string;
+    doctor_name?: string;
+    sample_id?: string;
+  };
+  test_results?: TestResult[];
+  abnormal_findings?: string[];
+  specimen_type?: string;
+  equipment_used?: string;
+  notes?: string;
+  error?: string;
+}
+
+interface DetailedReportAnalysis {
+  success: boolean;
+  report_id?: number;
+  file_name: string;
+  generated_at: string;
+  extraction_summary: ExtractionSummary;
+  extracted_reports: ExtractedReport[];
+  clinical_insights: string;
+  markdown_report: string;
 }
 
 // ====================== API SERVICE ======================
@@ -168,6 +236,15 @@ class ApiService {
     return response.data;
   }
 
+  async updateUser(data: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+  }): Promise<User> {
+    const response = await apiClient.patch('/auth/update/', data);
+    return response.data;
+  }
+
   // ==================== USER PROFILE ====================
 
   async getUserProfile(): Promise<UserProfile> {
@@ -187,6 +264,44 @@ class ApiService {
   }>) {
     const response = await apiClient.post('/profile/update-history/', { conditions });
     return response.data;
+  }
+
+  // ==================== MEDICAL REPORTS ====================
+
+  async getMedicalReports(): Promise<any[]> {
+    const response = await apiClient.get('/medical-reports/');
+    console.log('apiService.getMedicalReports - Response:', response.data);
+    
+    // Handle both array and paginated response formats
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data?.results && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    return [];
+  }
+
+  async getMedicalReportById(id: number): Promise<any> {
+    const response = await apiClient.get(`/medical-reports/${id}/`);
+    return response.data;
+  }
+
+  async uploadMedicalReport(formData: FormData): Promise<any> {
+    const response = await apiClient.post('/medical-reports/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async analyzeMedicalReport(reportId: number): Promise<any> {
+    const response = await apiClient.post('/reports/analyze/', { report_id: reportId });
+    return response.data;
+  }
+
+  async deleteMedicalReport(id: number): Promise<void> {
+    await apiClient.delete(`/medical-reports/${id}/`);
   }
 
   // ==================== TRIAGE & ASSESSMENT ====================
@@ -252,7 +367,21 @@ class ApiService {
     risk_level?: string;
   }): Promise<Facility[]> {
     const response = await apiClient.get('/facilities/nearby/', { params });
-    return response.data.facilities || response.data;
+    const facilities = response.data.facilities || response.data;
+    if (!Array.isArray(facilities)) {
+      return [];
+    }
+
+    return facilities.map((facility: any) => ({
+      ...facility,
+      latitude: facility.latitude ?? facility.lat,
+      longitude: facility.longitude ?? facility.lng,
+      distance_km: typeof facility.distance_km === 'number'
+        ? facility.distance_km
+        : (typeof facility.distance === 'string'
+          ? parseFloat(String(facility.distance).replace(' km', ''))
+          : undefined),
+    }));
   }
 
   // ==================== DIETARY RECOMMENDATIONS ====================
@@ -262,33 +391,6 @@ class ApiService {
     possible_conditions: string[];
   }): Promise<DietaryRecommendations> {
     const response = await apiClient.post('/recommendations/dietary/', data);
-    return response.data;
-  }
-
-  // ==================== MEDICAL REPORTS ====================
-
-  async uploadMedicalReport(file: File, description?: string) {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (description) {
-      formData.append('description', description);
-    }
-
-    const response = await apiClient.post('/medical-reports/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  }
-
-  async analyzeMedicalReport(reportId: number) {
-    const response = await apiClient.post('/reports/analyze/', { report_id: reportId });
-    return response.data;
-  }
-
-  async getMedicalReports() {
-    const response = await apiClient.get('/medical-reports/');
     return response.data;
   }
 
@@ -370,14 +472,46 @@ class ApiService {
     const response = await apiClient.patch(`/clinician/alerts/${alertId}/mark-read/`);
     return response.data;
   }
+
+  // ==================== DETAILED REPORT ANALYSIS ====================
+
+  async analyzeReportDetailed(reportId: number): Promise<DetailedReportAnalysis> {
+    const response = await apiClient.post('/reports/analyze-local/', { report_id: reportId });
+    return response.data;
+  }
+
+  async downloadReportAnalysis(reportId: number, format: 'json' | 'md' = 'md'): Promise<Blob> {
+    const response = await apiClient.get(`/reports/analysis/${reportId}/download/`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  // Helper method to download analysis file
+  downloadAnalysisFile(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
 }
 
-export default new ApiService();
+export const apiService = new ApiService();
+export default apiService;
 export type {
   User,
   UserProfile,
   TriageRecord,
   ConsultationSession,
-  Facility,
   DietaryRecommendations,
+  DetailedReportAnalysis,
+  ExtractionSummary,
+  ExtractedReport,
+  TestResult,
+  AbnormalFinding,
 };

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
 
 interface SignupData {
   email: string;
@@ -44,12 +44,17 @@ class AuthService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Signup failed');
+        const errorData = await response.json();
+        // DRF returns errors as {'field': ['error msg']} or {'non_field_errors': ['msg']}
+        const errorMessage = errorData.detail 
+          || errorData.non_field_errors?.[0]
+          || Object.values(errorData).flat()[0]
+          || 'Signup failed';
+        throw new Error(String(errorMessage));
       }
 
       const result = await response.json();
-      this.setTokens(result.access, result.refresh);
+      this.setTokens(result.access, result.refresh, result.user);
       return result;
     } catch (error) {
       console.error('Signup error:', error);
@@ -68,12 +73,16 @@ class AuthService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Login failed');
+        const errorData = await response.json();
+        const errorMessage = errorData.detail
+          || errorData.non_field_errors?.[0]
+          || Object.values(errorData).flat()[0]
+          || 'Login failed';
+        throw new Error(String(errorMessage));
       }
 
       const result = await response.json();
-      this.setTokens(result.access, result.refresh);
+      this.setTokens(result.access, result.refresh, result.user);
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -83,12 +92,14 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
+      const refreshToken = localStorage.getItem('refresh_token');
       await fetch(`${API_BASE_URL}/auth/logout/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ refresh: refreshToken }),
       });
     } catch (error) {
       console.error('Logout error:', error);
@@ -97,11 +108,14 @@ class AuthService {
     }
   }
 
-  private setTokens(access: string, refresh: string): void {
+  private setTokens(access: string, refresh: string, user?: any): void {
     this.token = access;
     this.refreshToken = refresh;
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
   }
 
   private clearTokens(): void {
@@ -109,20 +123,31 @@ class AuthService {
     this.refreshToken = null;
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+  }
+
+  getUser(): any {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
   }
 
   getToken(): string | null {
+    // Always read from localStorage to get the latest token
+    this.token = localStorage.getItem('access_token');
     return this.token;
   }
 
   isAuthenticated(): boolean {
-    return this.token !== null;
+    // Always check localStorage for the latest token
+    const token = localStorage.getItem('access_token');
+    return token !== null && token !== '';
   }
 
   getAuthHeaders(): HeadersInit {
+    const token = this.getToken();
     return {
       'Content-Type': 'application/json',
-      ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+      ...(token && { 'Authorization': `Bearer ${token}` }),
     };
   }
 }

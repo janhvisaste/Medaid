@@ -8,27 +8,29 @@ import {
   Download,
   Eye,
   Search,
-  ChevronLeft
+  ChevronLeft,
+  Trash2
 } from 'lucide-react';
 import authService from '../../services/authService';
 
 interface MedicalReport {
   id: number;
   file_name: string;
+  file_url?: string;
+  file_type?: string;
   upload_date: string;
-  structured_data: {
+  description?: string;
+  structured_data?: {
     patient_name?: string;
     patient_age?: number;
     patient_dob?: string;
     diagnosis?: string;
     triage_level?: string;
   };
-  extracted_text: string;
-  user: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
+  extracted_text?: string;
+  user_email?: string;
+  user_first_name?: string;
+  user_last_name?: string;
 }
 
 interface PatientReportsProps {
@@ -42,6 +44,7 @@ const PatientReports: React.FC<PatientReportsProps> = ({ theme, onBack, onViewDe
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTriage, setFilterTriage] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchReports();
@@ -49,16 +52,40 @@ const PatientReports: React.FC<PatientReportsProps> = ({ theme, onBack, onViewDe
 
   const fetchReports = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/medical-reports/', {
-        headers: authService.getAuthHeaders(),
+      const token = authService.getToken();
+      console.log('PatientReports - Fetching with token:', token ? 'Present' : 'Missing');
+      
+      if (!token) {
+        console.error('No authentication token available');
+        setReports([]);
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://127.0.0.1:8001/api/medical-reports/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
+      console.log('PatientReports - Response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        // Ensure data is always an array
-        setReports(Array.isArray(data) ? data : []);
+        console.log('PatientReports - Data received:', data);
+        
+        // Handle both array and paginated response formats
+        let reportsArray = [];
+        if (Array.isArray(data)) {
+          reportsArray = data;
+        } else if (data.results && Array.isArray(data.results)) {
+          reportsArray = data.results;
+        }
+        
+        setReports(reportsArray);
       } else {
-        console.error('Failed to fetch reports');
+        console.error('Failed to fetch reports:', response.status, response.statusText);
         setReports([]);
       }
     } catch (error) {
@@ -66,6 +93,36 @@ const PatientReports: React.FC<PatientReportsProps> = ({ theme, onBack, onViewDe
       setReports([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (reportId: number) => {
+    if (!window.confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingId(reportId);
+      const token = authService.getToken();
+      
+      const response = await fetch(`http://127.0.0.1:8001/api/medical-reports/${reportId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok || response.status === 204) {
+        setReports(prev => prev.filter(r => r.id !== reportId));
+      } else {
+        console.error('Failed to delete report:', response.status);
+        alert('Failed to delete the report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      alert('An error occurred while deleting the report.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -234,10 +291,13 @@ const PatientReports: React.FC<PatientReportsProps> = ({ theme, onBack, onViewDe
                         </div>
                         <div>
                           <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                            {report.structured_data?.patient_name || `${report.user.first_name} ${report.user.last_name}`}
+                            {report.structured_data?.patient_name || 
+                             (report.user_first_name && report.user_last_name 
+                               ? `${report.user_first_name} ${report.user_last_name}` 
+                               : report.file_name)}
                           </div>
                           <div className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                            {report.user.email}
+                            {report.user_email || report.file_name}
                           </div>
                         </div>
                       </div>
@@ -273,13 +333,21 @@ const PatientReports: React.FC<PatientReportsProps> = ({ theme, onBack, onViewDe
                           <Eye className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`} />
                         </button>
                         <a
-                          href={`http://127.0.0.1:8000/api/medical-reports/${report.id}/download/`}
+                          href={`http://127.0.0.1:8001/api/medical-reports/${report.id}/download/`}
                           download
                           className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-lg transition-colors`}
                           title="Download Report"
                         >
                           <Download className={`w-4 h-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`} />
                         </a>
+                        <button
+                          onClick={() => handleDelete(report.id)}
+                          disabled={deletingId === report.id}
+                          className={`p-2 ${theme === 'dark' ? 'hover:bg-red-900/30' : 'hover:bg-red-100'} rounded-lg transition-colors ${deletingId === report.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Delete Report"
+                        >
+                          <Trash2 className={`w-4 h-4 ${deletingId === report.id ? 'animate-pulse' : ''} ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`} />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>

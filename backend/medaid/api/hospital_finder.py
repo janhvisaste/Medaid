@@ -7,6 +7,7 @@ Uses FREE OpenStreetMap APIs (Nominatim + Overpass)
 import os
 import requests
 import time
+import re
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from math import radians, sin, cos, sqrt, atan2
@@ -41,7 +42,7 @@ class HospitalFinder:
     def __init__(self):
         # OpenStreetMap APIs - 100% FREE!
         self.nominatim_url = "https://nominatim.openstreetmap.org/search"
-        self.overpass_url = "https://overpass-api.de/api/interpreter"
+        self.overpass_url = "https://lz4.overpass-api.de/api/interpreter"
         
         # User agent for Nominatim (required by their usage policy)
         self.headers = {
@@ -54,8 +55,8 @@ class HospitalFinder:
         self,
         location: str,
         risk_level: str = "medium",
-        radius: int = 5000,
-        max_results: int = 5
+        radius: int = 20000,
+        max_results: int = 15
     ) -> List[Hospital]:
         """
         Find nearby hospitals using FREE OpenStreetMap
@@ -69,46 +70,69 @@ class HospitalFinder:
         Returns:
             List of Hospital objects
         """
+        hospitals = []
+        
         try:
             # Step 1: Geocode location using Nominatim (FREE!)
-            lat, lng = self._geocode_location(location)
-            
-            if not lat or not lng:
-                print(f"⚠️ Could not geocode location: {location}, using fallback")
-                return self._get_fallback_hospitals(location, max_results)
-            
-            # Step 2: Find nearby hospitals using Overpass API (FREE!)
-            hospitals = self._find_with_overpass(lat, lng, radius, max_results)
-            
-            if hospitals:
-                return hospitals
-            else:
-                print(f"⚠️ No hospitals found via OpenStreetMap, using fallback")
-                return self._get_fallback_hospitals(location, max_results)
+            # Improve search query for pincodes (supports plain pin and text like "Pincode: 560001")
+            normalized_location = str(location or "").strip()
+            pincode_match = re.search(r'\b(\d{6})\b', normalized_location)
+            search_query = f"{pincode_match.group(1)}, India" if pincode_match else normalized_location
                 
+            lat, lng = self._geocode_location(search_query)
+            
+            if lat is not None and lng is not None:
+                # Step 2: Find nearby hospitals using Overpass API (FREE!)
+                hospitals = self._find_with_overpass(lat, lng, radius, max_results, location)
+            else:
+                print(f"⚠️ Could not geocode location: {location}")
+
         except Exception as e:
-            print(f"⚠️ Error finding hospitals: {e}, using fallback")
-            return self._get_fallback_hospitals(location, max_results)
+            print(f"⚠️ Error finding hospitals: {e}")
+            
+        # Step 3: Use fallback if no hospitals found
+        if not hospitals:
+            print(f"⚠️ No hospitals found via OpenStreetMap, using fallback database")
+            hospitals = self._get_fallback_hospitals(location, max_results)
+            
+        return hospitals
     
     def _geocode_location(self, location: str) -> tuple:
         """Geocode location using Nominatim (FREE!)"""
         try:
-            # Add country bias for India
-            params = {
-                'q': location,
+            query = str(location or '').strip()
+            pincode_match = re.search(r'\b(\d{6})\b', query)
+
+            # Try structured postal-code search first for better pincode accuracy.
+            request_params = []
+            if pincode_match:
+                request_params.append({
+                    'postalcode': pincode_match.group(1),
+                    'country': 'India',
+                    'format': 'json',
+                    'limit': 1,
+                    'addressdetails': 1,
+                })
+
+            # Fallback to regular text query with India bias.
+            request_params.append({
+                'q': query,
                 'format': 'json',
                 'limit': 1,
-                'countrycodes': 'in'  # Bias towards India
-            }
-            
-            response = requests.get(
-                self.nominatim_url,
-                params=params,
-                headers=self.headers,
-                timeout=5
-            )
-            
-            if response.status_code == 200:
+                'countrycodes': 'in',
+            })
+
+            for params in request_params:
+                response = requests.get(
+                    self.nominatim_url,
+                    params=params,
+                    headers=self.headers,
+                    timeout=5
+                )
+
+                if response.status_code != 200:
+                    continue
+
                 data = response.json()
                 if data and len(data) > 0:
                     lat = float(data[0]['lat'])
@@ -170,13 +194,14 @@ class HospitalFinder:
         lat: float,
         lng: float,
         radius: int,
-        max_results: int
+        max_results: int,
+        location_label: str
     ) -> List[Hospital]:
         """Find hospitals using Overpass API (FREE!)"""
         try:
             # Overpass QL query to find hospitals, clinics, and doctors
             query = f"""
-            [out:json][timeout:10];
+            [out:json][timeout:25];
             (
               node["amenity"="hospital"](around:{radius},{lat},{lng});
               node["amenity"="clinic"](around:{radius},{lat},{lng});
@@ -184,16 +209,14 @@ class HospitalFinder:
               way["amenity"="hospital"](around:{radius},{lat},{lng});
               way["amenity"="clinic"](around:{radius},{lat},{lng});
             );
-            out body;
-            >;
-            out skel qt;
+            out center tags;
             """
             
             response = requests.post(
                 self.overpass_url,
                 data=query,
                 headers=self.headers,
-                timeout=15
+                timeout=25
             )
             
             if response.status_code != 200:
@@ -254,9 +277,9 @@ class HospitalFinder:
                     if reverse_address:
                         address = reverse_address
                     else:
-                        address = f"Near {location}"  # Fallback to search location
+                        address = f"Near {location_label}"  # Fallback to search location
                 else:
-                    address = ', '.join(address_parts) if address_parts else f"Near {location}"
+                    address = ', '.join(address_parts) if address_parts else f"Near {location_label}"
                 
                 # Create hospital object
                 hospital = Hospital(
@@ -359,22 +382,19 @@ class HospitalFinder:
                 print(f"✅ Using fallback hospitals for: {city}")
                 return hospitals[:max_results]
         
-        # Match pincode
-        if location.strip().isdigit() and len(location.strip()) >= 3:
-            pincode_prefix = location.strip()[:3]
-            if pincode_prefix in pincode_to_city:
-                city = pincode_to_city[pincode_prefix]
-                print(f"✅ Using fallback hospitals for pincode {location} → {city}")
-                return static_hospitals[city][:max_results]
-        
-        # Extract pincode from text
-        import re
+        # Match pincode (plain or embedded in text)
         pincode_match = re.search(r'\b(\d{6})\b', location)
         if pincode_match:
             pincode_prefix = pincode_match.group(1)[:3]
             if pincode_prefix in pincode_to_city:
                 city = pincode_to_city[pincode_prefix]
-                print(f"✅ Using fallback hospitals for extracted pincode → {city}")
+                print(f"✅ Using fallback hospitals for pincode {pincode_match.group(1)} → {city}")
+                return static_hospitals[city][:max_results]
+        elif location.strip().isdigit() and len(location.strip()) >= 3:
+            pincode_prefix = location.strip()[:3]
+            if pincode_prefix in pincode_to_city:
+                city = pincode_to_city[pincode_prefix]
+                print(f"✅ Using fallback hospitals for pincode {location} → {city}")
                 return static_hospitals[city][:max_results]
         
         # Default to Mumbai

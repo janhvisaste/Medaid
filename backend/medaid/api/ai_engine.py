@@ -105,9 +105,9 @@ class AITriageEngine:
     """AI-powered medical triage system using Google Gemini"""
     
     def __init__(self):
-        self.api_key = os.getenv("GOOGLE_API_KEY")
+        self.api_key = os.getenv("GEMINI_API_KEY_CHAT") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY_DOCS")
         if not self.api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables")
+            raise ValueError("No Gemini API key found in environment variables")
         
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",

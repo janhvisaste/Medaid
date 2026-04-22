@@ -70,7 +70,7 @@ const ConsultationFlow: React.FC = () => {
     try {
       const token = localStorage.getItem('access_token');
       const response = await axios.post(
-        'http://127.0.0.1:8000/api/triage/assess/',
+        'http://127.0.0.1:8001/api/triage/assess/',
         {
           current_symptoms: symptoms,
           input_mode: inputMode

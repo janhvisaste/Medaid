@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Github } from 'lucide-react';
+import { Activity, Eye, EyeOff } from 'lucide-react';
 import authService from '../../services/authService';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -11,6 +11,7 @@ const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -38,13 +39,17 @@ const SignupPage: React.FC = () => {
       setError('Password is required');
       return false;
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Invalid email format');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return false;
     }
     return true;
@@ -73,195 +78,114 @@ const SignupPage: React.FC = () => {
     }
   };
 
+  const authImage = 'https://i.pinimg.com/736x/73/b1/81/73b18143b223d354ba690043ec06d7c5.jpg';
+  const inputClassName = 'h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-300 focus-visible:ring-offset-white';
+
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-900 p-12 flex-col justify-between relative overflow-hidden">
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/50 via-purple-600/50 to-indigo-800/50"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-white mb-16">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-purple-700 font-bold text-lg">M</span>
-            </div>
-            <span className="text-xl font-semibold">Medaid</span>
-          </div>
+    <div className="min-h-screen bg-[#f2f4f8] p-4 md:p-8 flex items-center justify-center">
+      <div className="w-full max-w-6xl bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden grid lg:grid-cols-2">
+        <div className="p-8 md:p-12">
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-2 text-slate-700 mb-8"
+          >
+            <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+              <Activity className="w-4 h-4" />
+            </span>
+            <span className="font-semibold">Medaid</span>
+          </button>
 
-          <div className="max-w-md">
-            <h1 className="text-5xl font-bold text-white mb-8 leading-tight">
-              Get Started with Us
-            </h1>
-            <p className="text-purple-100 text-lg mb-12">
-              Complete these easy steps to register your account.
-            </p>
+          <h1 className="text-3xl md:text-4xl font-semibold text-slate-900">Welcome to Medaid.</h1>
+          <p className="text-slate-500 mt-2 mb-6">Let's help you get started with better care.</p>
+          <p className="text-sm text-slate-500 mb-6">
+            Already have an account?{' '}
+            <Link to="/login" className="text-slate-900 font-medium underline">Log in</Link>
+          </p>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-purple-700 font-bold">1</span>
-                </div>
-                <span className="text-white font-medium">Sign up your account</span>
-              </div>
-
-              <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold">2</span>
-                </div>
-                <span className="text-purple-200">Set up your workspace</span>
-              </div>
-
-              <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold">3</span>
-                </div>
-                <span className="text-purple-200">Set up your profile</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative circles */}
-        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/4 -left-20 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl"></div>
-      </div>
-
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-black">
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-md"
-        >
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Sign Up Account</h2>
-            <p className="text-gray-400 text-sm">Enter your personal data to create your account.</p>
-          </div>
-
-          {/* Social Login Buttons */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <button className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-xl py-3 transition-colors">
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              <span className="text-white text-sm font-medium">Google</span>
-            </button>
-
-            <button className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-xl py-3 transition-colors">
-              <Github className="w-5 h-5 text-white" />
-              <span className="text-white text-sm font-medium">Github</span>
-            </button>
-          </div>
-
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-black text-gray-500">Or</span>
-            </div>
-          </div>
-
-          {/* Error message */}
           {error && (
-            <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
               {error}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name fields */}
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">First Name</label>
-                <Input
-                  type="text"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  placeholder="eg. John"
-                  className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-600"
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
+                <Input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} placeholder="Enter first name" className={inputClassName} autoComplete="off" />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Last Name</label>
-                <Input
-                  type="text"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  placeholder="eg. Francisco"
-                  className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-600"
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
+                <Input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} placeholder="Enter last name" className={inputClassName} autoComplete="off" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
+                <Input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Enter phone number" className={inputClassName} autoComplete="off" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+                <Input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Enter email" className={inputClassName} autoComplete="off" />
               </div>
             </div>
 
-            {/* Email field */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Email</label>
-              <Input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="eg. johnfrans@gmail.com"
-                className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-600"
-              />
-            </div>
-
-            {/* Password field */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Password</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="relative">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Enter your password"
-                  className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-600 pr-10"
+                  placeholder="Enter password"
+                  className={`${inputClassName} pr-10`}
+                  autoComplete="new-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-400 transition-colors"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-9 text-slate-400">
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {formData.password && formData.password.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters.</p>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  placeholder="Re-enter password"
+                  className={inputClassName}
+                  autoComplete="new-password"
+                />
+              </div>
             </div>
 
-            {/* Submit button */}
-            <Button
-              disabled={loading}
-              type="submit"
-              className="w-full h-11 bg-white hover:bg-gray-100 text-black font-semibold"
-            >
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" className="rounded border-slate-300" />
+              I want to receive Medaid updates and product news
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" className="rounded border-slate-300" />
+              I agree to the Terms & Privacy Policy
+            </label>
+
+            <Button disabled={loading} type="submit" className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg">
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
-
-            {/* Login link */}
-            <div className="text-center">
-              <p className="text-gray-400 text-sm">
-                Already have an account?{' '}
-                <Link to="/login" className="text-white hover:text-gray-300 font-semibold transition-colors underline">
-                  Log in
-                </Link>
-              </p>
-            </div>
           </form>
+        </div>
+
+        <motion.div
+          initial={{ x: 120 }}
+          animate={{ x: 0 }}
+          transition={{ type: 'spring', stiffness: 170, damping: 24 }}
+          className="relative min-h-[420px] lg:min-h-full"
+        >
+          <img src={authImage} alt="Medaid signup visual" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 via-slate-900/25 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-8 md:p-10 text-white">
+            <p className="text-sm font-medium text-white/90 mb-3">Create your Medaid account</p>
+            <h2 className="text-3xl font-semibold leading-tight max-w-md">Get access to triage clarity and smarter healthcare decisions.</h2>
+            <p className="text-sm text-white/80 mt-3">For patients, clinicians, and care teams.</p>
+          </div>
         </motion.div>
       </div>
     </div>
