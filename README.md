@@ -110,14 +110,3 @@ The application will be available at `http://localhost:3000` and the API at `htt
    > *"I've had a severe persistent headache for 3 days, accompanied by minor nausea and sensitivity to light."*
 2. **Interaction:** Respond to the AI's follow-up questions dynamically determining the exact onset time and intensity.
 3. **Output:** Once complete, view your dietary recommendations and download your structured PDF Health Passport.
-
-## 🧠 Key Learnings / Challenges
-
-- **Prompt Engineering & Hallucination Prevention (🔥):** The most critical challenge was guaranteeing the AI didn't formally *diagnose* patients or offer dangerous medical advice. This required rigorous instruction tuning, forcing the model to act strictly as a *triage data-extraction agent* rather than an authoritative physician.
-- **State Management Across Multi-Turn LLM Calls:** Retaining session context between the React frontend and stateless Django backend for an ongoing assessment conversation was complex. We resolved this by carefully serializing and appending conversation history in the database to ensure the AI maintained context without exceeding context windows.
-- **PDF Generation Nuances:** Building structured, visually appealing, and dynamic PDF reports directly from the backend using `ReportLab` required meticulous coordinate mapping and text-wrapping logic.
-
-## 📌 Future Improvements
-- **Memory & Latency Optimization:** Implement Semantic Caching (e.g., Redis) to bypass the LLM for identical/routine symptom queries, heavily reducing API latency and LLM costs.
-- **Multi-Modal Analysis:** Enable secure image uploads so patients can provide photos of visual symptoms (rashes, swelling), fully leveraging Gemini's vision capabilities.
-- **FHIR Interoperability:** Standardize and export patient records in FHIR (Fast Healthcare Interoperability Resources) format for direct and seamless EHR integration.
