@@ -1,4 +1,4 @@
-# 🏥 MedAid - **An AI-Powered Medical Triage Platform**
+# 🏥 MedAid - **An AI Powered Medical Triage Platform**
 
 ## 🛑 Problem Statement (Why this exists)
 In modern healthcare systems, the initial patient triage process is often inefficient, leading to critical bottlenecks. 
