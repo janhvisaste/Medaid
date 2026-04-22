@@ -109,4 +109,4 @@ The application will be available at `http://localhost:3000` and the API at `htt
 1. **Input:** Describe your symptoms in the prompt box: 
    > *"I've had a severe persistent headache for 3 days, accompanied by minor nausea and sensitivity to light."*
 2. **Interaction:** Respond to the AI's follow-up questions dynamically determining the exact onset time and intensity.
-3. **Output:** Once complete, view your dietary recommendations and download your structured PDF Health Passport.
+3. **Output:** Once complete, download your structured PDF Health Passport.
