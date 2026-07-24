@@ -21,6 +21,12 @@ Published at **IEEE ICTBIG 2025** · [Read the paper](https://ieeexplore.ieee.or
 
 ---
 
+## Demo
+
+_Live demo and screenshots coming soon._ In the meantime, [Getting Started](#getting-started) has the app running locally in under five minutes.
+
+---
+
 ## What Is This?
 
 An LLM-driven triage agent for under-resourced healthcare settings, where the first triage decision is normally made by the patient with no information — they delay care that's needed, seek emergency care that isn't, and clinicians receive intake with no priority signal at all.
@@ -320,6 +326,14 @@ Published research — cite the paper if you build on this work:
 ```
 
 Also referenced: [Lab-AI (arXiv:2409.18986)](https://arxiv.org/abs/2409.18986), whose grounding results shaped the decision to keep lab classification out of the model.
+
+---
+
+## Contact & Support
+
+- **Bugs and feature requests** — [open an issue](https://github.com/janhvisaste/Medaid/issues)
+- **Security concerns** — see [SECURITY.md](SECURITY.md); please don't open a public issue
+- **Everything else** — [@janhvisaste](https://github.com/janhvisaste)
 
 ---
 
