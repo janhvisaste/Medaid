@@ -42,6 +42,3 @@ commit does not remove it from history.
   from `DJANGO_DEBUG` and can be overridden per-variable.
 - Startup fails hard if `DJANGO_DEBUG=False` and `DJANGO_SECRET_KEY` is still
   the development placeholder.
-- The reference-parity endpoint (`ENABLE_REFERENCE_COMPAT_API`) deliberately
-  bypasses the safety layer and is **off by default**. It must never be enabled
-  on an instance serving real users.

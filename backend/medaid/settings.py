@@ -36,26 +36,8 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True').strip().lower() in {'1', 'true', 
 if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
     raise RuntimeError('DJANGO_SECRET_KEY must be configured when DJANGO_DEBUG is disabled.')
 
-def _bool_env(name, default='False'):
-    return os.environ.get(name, default).strip().lower() in {'1', 'true', 'yes', 'on'}
-
-
 def _csv_env(name, default):
     return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
-
-
-# Streamlit-reference behavioural compatibility endpoint (/api/reference-compat/assess/).
-#
-# OFF by default, including in DEBUG. This endpoint deliberately reproduces the
-# upstream reference's triage behaviour byte-for-byte, which means it does NOT
-# carry the safety work applied to the primary triage paths: it uses its own
-# 14-keyword emergency list with no negation handling, and has none of the
-# emergency short-circuit, degraded-response risk floor, confidence calibration,
-# or condition-name validation. It exists for parity comparison against the
-# reference implementation and must not serve patients.
-#
-# Set ENABLE_REFERENCE_COMPAT_API=true only in a parity-testing environment.
-ENABLE_REFERENCE_COMPAT_API = _bool_env('ENABLE_REFERENCE_COMPAT_API')
 
 
 # Restrict allowed hosts by default. In production, set via environment.

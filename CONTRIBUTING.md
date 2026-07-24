@@ -101,4 +101,3 @@ investigating.
   or confidence calibration to make output "look better".
 - Do not let the LLM decide anything arithmetic — lab values are classified by
   [`lab_reference.py`](backend/api/lab_reference.py), not by a model.
-- Do not enable `ENABLE_REFERENCE_COMPAT_API` outside parity testing.

@@ -14,8 +14,6 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-import logging
-
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -91,22 +89,6 @@ urlpatterns = [
         path('', include(router.urls)),
     ])),
 ]
-
-# Isolated behavioural compatibility endpoint for the Streamlit reference.
-#
-# Routed ONLY when ENABLE_REFERENCE_COMPAT_API is explicitly enabled. This
-# endpoint reproduces the reference's triage behaviour verbatim and therefore
-# lacks the emergency short-circuit, negation-aware keyword screen, degraded
-# risk floor, and condition validation that protect the primary paths. It is a
-# parity-testing tool, not a patient-facing route. See settings for detail.
-if getattr(settings, 'ENABLE_REFERENCE_COMPAT_API', False):
-    logging.getLogger(__name__).warning(
-        'reference_compat.endpoint_enabled',
-        extra={'path': '/api/reference-compat/assess/'},
-    )
-    urlpatterns.append(
-        path('api/reference-compat/', include('reference_compat.urls'))
-    )
 
 # Serve media files in development
 if settings.DEBUG:
