@@ -88,7 +88,7 @@ flowchart TB
     end
 
     subgraph engines["🧠  REASONING ENGINES"]
-        direction LR
+        direction TB
         TRIAGE["Triage Engine v2"]
         CHAT["Chat Service"]
         REPORT["Report Insight Engine"]
@@ -96,18 +96,18 @@ flowchart TB
     end
 
     subgraph providers["☁️  LLM PROVIDERS"]
-        direction TB
+        direction LR
         GEM["Google Gemini<br/><b>primary</b>"]
         OR["OpenRouter<br/><b>failover</b>"]
         NV["NVIDIA Vision"]
-        GEM -. "every 30 min" .-> CEL["Celery Beat<br/><i>warms failover catalogue</i>"]
-        GEM -. "on error" .-> OR
-        REPORT -. "images only" .-> NV
     end
 
     subgraph ocr["👁️  OCR TIERS"]
         direction LR
-        T1["1 · Apple Vision"] -- fallback --> T2["2 · Tesseract"] -- fallback --> T3["3 · NVIDIA Vision"]
+        T1["1 · Apple Vision"]
+        T2["2 · Tesseract"]
+        T3["3 · NVIDIA Vision"]
+        T1 -.fallback.-> T2 -.fallback.-> T3
     end
 
     subgraph data["💾  PERSISTENCE"]
@@ -117,13 +117,18 @@ flowchart TB
         KB[["ICD-10-CM index<br/>Lab knowledge base<br/><i>vendored, in-process</i>"]]
     end
 
+    CEL["🔄 Celery Beat<br/><i>warms failover catalogue</i>"]
+
     UI <==>|"HTTPS · JWT"| api
     ROUTES ==> safety
     safety ==> engines
     engines ==>|"primary"| GEM
+    GEM -.->|"on error"| OR
     REPORT ==> ocr
+    ocr -.->|"images only"| NV
     engines ==> data
     safety ==> KB
+    CEL -.->|"every 30 min"| OR
     api <==> RD
 
     classDef clientStyle fill:#e0f2fe,stroke:#0369a1,stroke-width:2px,color:#0c4a6e
