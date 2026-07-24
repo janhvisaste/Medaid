@@ -1,10 +1,23 @@
+<div align="center">
+
 # MedAid
-> Describe your symptoms in plain English. MedAid returns a risk-stratified assessment — and the model is deliberately the least trusted part of the system that produces it.
+
+**A safety-first AI triage platform that turns a patient's description of their symptoms into a structured, risk-stratified assessment a clinician can act on.**
+
+[![CI](https://github.com/janhvisaste/Medaid/actions/workflows/ci.yml/badge.svg)](https://github.com/janhvisaste/Medaid/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Django 4.2](https://img.shields.io/badge/Django-4.2-092E20.svg?logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
+[![Tests](https://img.shields.io/badge/tests-343%20passing-brightgreen.svg)](#testing)
+[![IEEE](https://img.shields.io/badge/IEEE-ICTBIG%202025-00629B.svg)](https://ieeexplore.ieee.org/document/11323835)
+
+Published at **IEEE ICTBIG 2025** · [Read the paper](https://ieeexplore.ieee.org/document/11323835) · [Cite](#citation)
+
+</div>
 
 > [!WARNING]
-> **Research prototype, not a medical device.** Not clinically validated, not regulatory-reviewed. Never a substitute for professional diagnosis. In an emergency, contact local emergency services.
-
-Published at **IEEE ICTBIG 2025** — [read the paper](https://ieeexplore.ieee.org/document/11323835) · [cite it](#citation)
+> **MedAid is a research prototype, not a medical device.** It has not been clinically validated or reviewed by any regulatory body. Its output is preliminary guidance only and never a substitute for professional diagnosis. In an emergency, contact your local emergency services.
 
 ---
 
@@ -109,36 +122,42 @@ The part of the system that matters most, in the order a request passes through 
 
 ---
 
+## Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 19 · TypeScript · Tailwind CSS · React Router · Framer Motion · Leaflet |
+| **Backend** | Django 4.2 · Django REST Framework · SimpleJWT · Celery + beat · django-redis |
+| **Database** | PostgreSQL (production) · SQLite (development) — selected by `DB_ENGINE`, no default |
+| **AI/LLM** | Google Gemini (primary) · OpenRouter (cross-provider failover) · NVIDIA vision (report images) |
+| **OCR** | Apple Vision (PyObjC sidecar) · Tesseract · PyMuPDF |
+| **Medical data** | Vendored ICD-10-CM tabular list (CMS/NCHS, public domain) · lab reference knowledge base |
+| **Infra** | Redis (cache, Celery broker, cross-worker quotas) · ReportLab · GitHub Actions |
+
+---
+
 ## Getting Started
 
-### 1. Clone
+**Prerequisites:** Python 3.12+, Node 18+. PostgreSQL, Redis, and Tesseract are optional locally. You'll want a [Gemini API key](https://aistudio.google.com/) (free tier works) — every other feature degrades gracefully without one.
+
 ```bash
 git clone https://github.com/janhvisaste/Medaid.git
 cd Medaid
-```
 
-### 2. Install
-```bash
-python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# Backend
+python3 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
-
-cd frontend && npm install --legacy-peer-deps && cd ..
-```
-
-### 3. Configure
-```bash
-cp backend/.env.example backend/.env      # add your GOOGLE_API_KEY
-cp frontend/.env.example frontend/.env.local
-```
-Get a free key from [Google AI Studio](https://aistudio.google.com/). Every other feature — OpenRouter failover, facility lookup, dietary advice — has a documented, silent fallback if left unset; see `.env.example` for the full list.
-
-### 4. Run
-```bash
+cp backend/.env.example backend/.env                    # add your GOOGLE_API_KEY
 cd backend && python manage.py migrate && python manage.py runserver 8001
-# new terminal
-cd frontend && npm start
+
+# Frontend (new terminal)
+cd frontend && cp .env.example .env.local
+npm install --legacy-peer-deps && npm start
 ```
-Frontend at `localhost:3000`, API at `127.0.0.1:8001/api`. Or run `./start-medaid.sh` (`.\start-medaid.ps1` on Windows) to start both.
+
+Frontend at **localhost:3000**, API at **127.0.0.1:8001/api**. Or run `./start-medaid.sh` (`.\start-medaid.ps1` on Windows) to start both at once.
+
+Every variable — including which ones fail silently when unset — is documented in [`backend/.env.example`](backend/.env.example).
 
 ---
 
@@ -155,7 +174,7 @@ Clinicians get a separate dashboard: assigned patients, priority-ordered alerts,
 
 ---
 
-## API & Endpoints
+## API Reference
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -195,19 +214,7 @@ An emergency short-circuit returns `"assessment_source": "emergency_rule"` and n
 
 ---
 
-## Tech Stack
-
-**Frontend:** React 19 · TypeScript · Tailwind CSS · React Router · Framer Motion · Leaflet
-**Backend:** Django 4.2 · Django REST Framework · SimpleJWT · Celery + beat · django-redis
-**Database:** PostgreSQL (production) · SQLite (development) — selected by `DB_ENGINE`, no default
-**LLM:** Google Gemini (primary) · OpenRouter (cross-provider failover) · NVIDIA vision (report images)
-**OCR:** Apple Vision (PyObjC sidecar) · Tesseract · PyMuPDF
-**Medical data:** Vendored ICD-10-CM tabular list (CMS/NCHS, public domain) · lab reference knowledge base
-**Infra:** Redis (cache, Celery broker, cross-worker quotas) · ReportLab · GitHub Actions
-
----
-
-## Project Layout
+## Project Structure
 
 ```
 backend/
@@ -223,7 +230,7 @@ backend/
     ├── assessment_quality.py    confidence calibration + name validation
     ├── icd10.py, lab_reference.py   deterministic grounding
     ├── llm_providers/           gemini · openrouter · catalog
-    └── test_*.py                 33 modules, 343 tests
+    └── test_*.py                33 modules, 343 tests
 
 frontend/src/
 ├── styles/medaidTokens.ts       single source of design truth
@@ -247,7 +254,23 @@ cd backend && python manage.py test         # full suite
 cd frontend && CI=true npm run build        # type-check + lint + build
 ```
 
-Coverage concentrates on risk: `test_emergency_check`, `test_critical_findings`, `test_confidence_cap`, `test_icd10_validation`, `test_provider_fallback`, plus end-to-end flow tests. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for what runs on every push.
+Coverage concentrates on risk: `test_emergency_check`, `test_critical_findings`, `test_confidence_cap`, `test_icd10_validation`, `test_provider_fallback`, plus end-to-end flow tests. CI runs this suite, a missing-migration check, the frontend build, and a secret scan on every push — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+---
+
+## Deployment
+
+Provision PostgreSQL, Redis, and object storage for `MEDIA_ROOT`, then:
+
+```bash
+python manage.py migrate --no-input && python manage.py collectstatic --no-input
+gunicorn medaid.wsgi:application --bind 0.0.0.0:8000 --workers 4
+celery -A medaid worker -l info          # plus: celery -A medaid beat -l info
+
+cd frontend && npm ci --legacy-peer-deps && npm run build   # serve build/ from a CDN
+```
+
+Set `DJANGO_DEBUG=False` (flips SSL redirect, HSTS, and secure cookies to their hardened defaults), a real `DJANGO_SECRET_KEY`, `DB_ENGINE=postgresql`, `REDIS_URL`, `ALLOWED_HOSTS`, and `CORS_ALLOWED_ORIGINS`. The app is stateless and provider-agnostic — anything that runs a Django container works. The only macOS-bound piece is the Apple Vision OCR sidecar; on Linux that tier drops out and Tesseract serves.
 
 ---
 
@@ -273,6 +296,12 @@ Stated plainly, because a triage system that overstates itself is the failure mo
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, code style, and branching model. The one hard rule: **anything touching the safety layer needs a test proving the guardrail holds when the LLM is unavailable.** Security issues go through [SECURITY.md](SECURITY.md), not public issues.
+
+---
+
 ## Citation
 
 Published research — cite the paper if you build on this work:
@@ -290,4 +319,14 @@ Published research — cite the paper if you build on this work:
 }
 ```
 
-**Author:** Janhvi Saste — [@janhvisaste](https://github.com/janhvisaste). Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md) — the one hard rule: anything touching the safety layer needs a test proving the guardrail holds when the LLM is unavailable. Licensed under [MIT](LICENSE).
+Also referenced: [Lab-AI (arXiv:2409.18986)](https://arxiv.org/abs/2409.18986), whose grounding results shaped the decision to keep lab classification out of the model.
+
+---
+
+<div align="center">
+
+**Author:** Janhvi Saste — [@janhvisaste](https://github.com/janhvisaste)
+
+Licensed under [MIT](LICENSE) · *the language model is the least trustworthy component, so give it the least authority.*
+
+</div>
