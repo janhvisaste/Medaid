@@ -69,23 +69,24 @@ if ! command -v curl >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if virtual environment exists
-VENV_PATH="${SCRIPT_DIR}/venv"
-if [[ ! -d "$VENV_PATH" ]]; then
-    echo -e "${RED}❌ Virtual environment not found at: ${VENV_PATH}${NC}"
-    echo -e "${YELLOW}💡 Please create a virtual environment first:${NC}"
-    echo -e "${YELLOW}   python -m venv venv${NC}"
-    echo -e "${YELLOW}   source venv/bin/activate${NC}"
-    echo -e "${YELLOW}   pip install -r backend/requirements.txt${NC}"
+# Accept either layout: `.venv` is what the README creates, `venv` is the
+# older convention some checkouts still use.
+if [[ -x "${SCRIPT_DIR}/.venv/bin/python" ]]; then
+    PYTHON_BIN="${SCRIPT_DIR}/.venv/bin/python"
+elif [[ -x "${SCRIPT_DIR}/venv/bin/python" ]]; then
+    PYTHON_BIN="${SCRIPT_DIR}/venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python)"
+else
+    echo -e "${RED}❌ No Python interpreter found in PATH.${NC}"
     exit 1
 fi
 
-if [[ ! -f "${VENV_PATH}/bin/activate" ]]; then
-    echo -e "${RED}❌ Virtual environment activation script not found: ${VENV_PATH}/bin/activate${NC}"
-    exit 1
-fi
+echo -e "${CYAN}🐍 Using Python: ${PYTHON_BIN}${NC}"
 
-BACKEND_DIR="${SCRIPT_DIR}/backend/medaid"
+BACKEND_DIR="${SCRIPT_DIR}/backend"
 FRONTEND_DIR="${SCRIPT_DIR}/frontend"
 
 if [[ ! -d "$BACKEND_DIR" || ! -f "$BACKEND_DIR/manage.py" ]]; then
@@ -100,28 +101,25 @@ fi
 
 # Run Database Migrations
 echo -e "${CYAN}🔄 Running Database Migrations...${NC}"
-cd "${SCRIPT_DIR}/backend/medaid"
-(
-    source "${VENV_PATH}/bin/activate"
-    python manage.py makemigrations
-    python manage.py migrate
-)
-if [ $? -ne 0 ]; then
+cd "${SCRIPT_DIR}/backend"
+if ! "${PYTHON_BIN}" manage.py makemigrations; then
+    echo -e "${RED}❌ Database migrations failed.${NC}"
+    exit 1
+fi
+if ! "${PYTHON_BIN}" manage.py migrate; then
     echo -e "${RED}❌ Database migrations failed.${NC}"
     exit 1
 fi
 
 # Start Backend Server
 echo -e "${CYAN}🔧 Starting Backend Server...${NC}"
-cd "${SCRIPT_DIR}/backend/medaid"
+cd "${SCRIPT_DIR}/backend"
 
-# Activate virtual environment and start Django server in background
+# Start Django server in background
 (
-    source "${VENV_PATH}/bin/activate"
-    echo -e "${GREEN}✅ Virtual environment activated!${NC}"
-    echo -e "${YELLOW}📦 Python: $(python --version)${NC}"
+    echo -e "${YELLOW}📦 Python: $(${PYTHON_BIN} --version)${NC}"
     echo -e "${CYAN}🚀 Starting Django server on http://127.0.0.1:8001/...${NC}\n"
-    python manage.py runserver 8001 > backend.log 2>&1
+    "${PYTHON_BIN}" manage.py runserver 8001 > backend.log 2>&1
 ) &
 
 BACKEND_PID=$!
@@ -147,7 +145,7 @@ done
 
 if [[ "$BACKEND_READY" != true ]]; then
     echo -e "${RED}❌ Backend did not start successfully on http://127.0.0.1:8001.${NC}"
-    echo -e "${YELLOW}💡 Check DB/env setup. Current project expects PostgreSQL on localhost:5432.${NC}"
+    echo -e "${YELLOW}💡 Check DB/env setup. Set DB_ENGINE=postgresql only if you want to use PostgreSQL.${NC}"
     exit 1
 fi
 

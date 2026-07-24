@@ -4,24 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-gray-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-control text-sm font-medium ring-offset-[var(--medaid-bg)] transition-colors duration-150 ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--medaid-accent)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-blue-600 text-white hover:bg-blue-500",
-        destructive:
-          "bg-red-600 text-white hover:bg-red-500",
-        outline:
-          "border border-gray-700 bg-gray-800/50 hover:bg-gray-800 hover:text-white",
-        secondary:
-          "bg-gray-800 text-white hover:bg-gray-700",
-        ghost: "hover:bg-gray-800 hover:text-white",
-        link: "text-blue-400 underline-offset-4 hover:underline",
+        default: "bg-brand text-brand-contrast hover:bg-brand-hover",
+        destructive: "bg-[var(--risk-emergency-solid)] text-white hover:brightness-110",
+        outline: "border border-[var(--medaid-border)] bg-[var(--medaid-surface)] text-[var(--medaid-ink-soft)] hover:bg-[var(--medaid-surface-muted)]",
+        secondary: "bg-[var(--medaid-surface-muted)] text-[var(--medaid-ink)] hover:bg-[var(--medaid-border)]",
+        ghost: "text-[var(--medaid-ink-soft)] hover:bg-[var(--medaid-surface-muted)] hover:text-[var(--medaid-ink)]",
+        link: "text-[var(--medaid-accent-strong)] underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        sm: "h-9 rounded-control px-3",
+        lg: "h-11 rounded-control px-8",
         icon: "h-10 w-10",
       },
     },

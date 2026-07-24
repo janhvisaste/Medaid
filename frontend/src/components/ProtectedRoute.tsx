@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import authService from '../services/authService';
+import { PageSkeleton } from './ui/Skeleton';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRole?: 'clinician' | 'patient';
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -19,19 +21,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, []);
 
   if (isAuthenticated === null) {
-    // Loading state
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && authService.getUser()?.role !== requiredRole) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

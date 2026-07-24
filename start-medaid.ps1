@@ -40,19 +40,22 @@ try {
     Write-Host "🏥 Starting MedAid Full Stack Application...`n" -ForegroundColor Cyan
 
     # Check if virtual environment exists
-    $VenvPath = Join-Path $ScriptPath "venv"
+    # Accept either layout: `.venv` is what the README creates, `venv` is the
+    # older convention some checkouts still use.
+    $VenvPath = Join-Path $ScriptPath ".venv"
+    if (!(Test-Path $VenvPath)) { $VenvPath = Join-Path $ScriptPath "venv" }
     if (!(Test-Path $VenvPath)) {
         Write-Host "❌ Virtual environment not found at: $VenvPath" -ForegroundColor Red
         Write-Host "💡 Please create a virtual environment first:" -ForegroundColor Yellow
-        Write-Host "   python -m venv venv" -ForegroundColor Yellow
-        Write-Host "   .\venv\Scripts\Activate.ps1" -ForegroundColor Yellow
+        Write-Host "   python -m venv .venv" -ForegroundColor Yellow
+        Write-Host "   .\.venv\Scripts\Activate.ps1" -ForegroundColor Yellow
         Write-Host "   pip install -r backend\requirements.txt" -ForegroundColor Yellow
         exit 1
     }
 
     # Start Backend Server
     Write-Host "🔧 Starting Backend Server..." -ForegroundColor Cyan
-    $BackendPath = Join-Path $ScriptPath "backend\medaid"
+    $BackendPath = Join-Path $ScriptPath "backend"
     
     # Create backend startup script
     $BackendScript = @"

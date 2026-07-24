@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
+export const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8001/api').replace(/\/+$/, '');
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -9,6 +9,8 @@ const apiClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+let refreshPromise: Promise<{ access: string; refresh?: string }> | null = null;
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
@@ -26,27 +28,31 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
-
-          const { access } = response.data;
-          localStorage.setItem('access_token', access);
-
-          originalRequest.headers.Authorization = `Bearer ${access}`;
-          return apiClient(originalRequest);
+        if (!refreshToken) throw new Error('Session expired. Please sign in again.');
+        if (!refreshPromise) {
+          refreshPromise = axios
+            .post(`${API_BASE_URL}/auth/token/refresh/`, { refresh: refreshToken })
+            .then(response => response.data)
+            .finally(() => { refreshPromise = null; });
         }
+        const { access, refresh } = await refreshPromise;
+        if (!access) throw new Error('Session refresh returned no access token.');
+        localStorage.setItem('access_token', access);
+        if (refresh) localStorage.setItem('refresh_token', refresh);
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+        return apiClient(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -64,6 +70,7 @@ interface User {
   first_name?: string;
   last_name?: string;
   phone_number?: string;
+  role?: 'patient' | 'clinician' | 'admin';
 }
 
 interface UserProfile {
@@ -75,8 +82,13 @@ interface UserProfile {
   state?: string;
   pincode?: string;
   past_history?: any;
+  other_notes?: string;
   institution?: string;
   license_number?: string;
+  license_expiry?: string;
+  preferred_model?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface TriageRecord {
@@ -90,6 +102,24 @@ interface TriageRecord {
   recommendations?: any[];
   created_at: string;
   input_mode?: string;
+  model_id?: string;
+  model_provider?: string;
+  assessment_source?: string;
+  degraded?: boolean;
+  is_degraded?: boolean;
+  model_error?: string;
+}
+
+interface AvailableModel {
+  id: string;
+  name: string;
+  context_length?: number;
+  pricing?: {
+    prompt?: string | null;
+    completion?: string | null;
+  };
+  description?: string;
+  is_free?: boolean;
 }
 
 interface ConsultationSession {
@@ -119,12 +149,31 @@ export interface Facility {
   longitude?: number;
 }
 
+interface DietaryCard {
+  category: string;
+  name: string;
+  rationale: string;
+  nutrient_highlights: { label: string; value: string }[];
+  image_url: string;
+  image_alt: string;
+}
+
 interface DietaryRecommendations {
-  risk_level: string;
-  conditions: string[];
-  dietary_recommendations: {
-    general: string[];
-    [key: string]: string[];
+  id: number;
+  summary: string;
+  cards: DietaryCard[];
+  daily_pattern?: string[];
+  next_step?: string;
+  model_id: string;
+  free_tier: boolean;
+  safety_flags: string[];
+  safety_notice: string;
+  context_used: {
+    profile: boolean;
+    assessment_history: number;
+    report_history: number;
+    conversation_turns: number;
+    previous_dietary_advice: number;
   };
 }
 
@@ -184,15 +233,63 @@ interface ExtractedReport {
   error?: string;
 }
 
+/** A finding whose status was verified arithmetically against reference ranges. */
+export interface VerifiedFinding {
+  test_name: string;
+  value: string;
+  status: 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high' | 'unknown';
+  explanation?: string;
+  possible_causes?: string[];
+  action?: string;
+  reference_range?: string;
+}
+
+/** Doctor-to-patient narrative, generated only from verified findings. */
+export interface ReportConsultation {
+  headline: string;
+  opening: string;
+  whats_working_well: string;
+  needs_attention: {
+    test_name: string;
+    plain_meaning: string;
+    why_it_matters_for_you: string;
+    urgency: 'routine' | 'soon' | 'urgent' | string;
+  }[];
+  connection_to_your_history: string;
+  trend_vs_previous: string;
+  next_steps: string[];
+  follow_up: string;
+  questions_for_your_doctor: string[];
+  red_flags: string[];
+  closing: string;
+}
+
+export interface ReportVerification {
+  total: number;
+  verified: number;
+  normal: number;
+  abnormal: number;
+  critical: number;
+  unverified: number;
+  overall_status: 'urgent' | 'attention_needed' | 'reassuring' | 'unclear' | string;
+}
+
 interface DetailedReportAnalysis {
   success: boolean;
+  // Present instead of the fields below when the report is still being
+  // processed (HTTP 202) — callers must check this before reading the rest.
+  pending?: boolean;
+  message?: string;
   report_id?: number;
-  file_name: string;
-  generated_at: string;
-  extraction_summary: ExtractionSummary;
-  extracted_reports: ExtractedReport[];
-  clinical_insights: string;
-  markdown_report: string;
+  file_name?: string;
+  generated_at?: string;
+  extraction_summary?: ExtractionSummary;
+  extracted_reports?: ExtractedReport[];
+  clinical_insights?: string;
+  markdown_report?: string;
+  consultation?: ReportConsultation | null;
+  verification?: ReportVerification | null;
+  abnormal_findings?: VerifiedFinding[];
 }
 
 // ====================== API SERVICE ======================
@@ -217,6 +314,7 @@ class ApiService {
 
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);
+    localStorage.setItem('user', JSON.stringify(user));
 
     return { access, refresh, user };
   }
@@ -228,6 +326,7 @@ class ApiService {
     } finally {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
     }
   }
 
@@ -257,12 +356,21 @@ class ApiService {
     return response.data;
   }
 
-  async updateMedicalHistory(conditions: Array<{
-    name: string;
-    selected: boolean;
-    notes?: string;
-  }>) {
-    const response = await apiClient.post('/profile/update-history/', { conditions });
+  async updateMedicalHistory(
+    conditions: Array<{
+      name: string;
+      selected: boolean;
+      notes?: string;
+    }>,
+    other_notes?: string,
+  ) {
+    const body: Record<string, unknown> = { conditions };
+    // Only include other_notes in the payload when explicitly provided
+    // (undefined = caller didn't touch the field; null/'' = caller cleared it)
+    if (other_notes !== undefined) {
+      body.other_notes = other_notes;
+    }
+    const response = await apiClient.post('/profile/update-history/', body);
     return response.data;
   }
 
@@ -270,8 +378,6 @@ class ApiService {
 
   async getMedicalReports(): Promise<any[]> {
     const response = await apiClient.get('/medical-reports/');
-    console.log('apiService.getMedicalReports - Response:', response.data);
-    
     // Handle both array and paginated response formats
     if (Array.isArray(response.data)) {
       return response.data;
@@ -304,28 +410,63 @@ class ApiService {
     await apiClient.delete(`/medical-reports/${id}/`);
   }
 
+  async deleteConversation(id: number): Promise<void> {
+    await apiClient.delete(`/chat/conversations/${id}/`);
+  }
+
+  /**
+   * Delete one of the user's own assessments.
+   *
+   * Throws with a readable message when the backend refuses (409) because a
+   * clinician is still reviewing it — callers should surface that, not swallow it.
+   */
+  async deleteTriageRecord(id: number): Promise<void> {
+    try {
+      await apiClient.delete(`/triage/${id}/`);
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
+        throw new Error(
+          error.response.data?.error
+            || 'This assessment is currently under clinician review and cannot be deleted yet.'
+        );
+      }
+      throw error;
+    }
+  }
+
   // ==================== TRIAGE & ASSESSMENT ====================
 
   async assessSymptoms(data: {
-    symptoms: string;
+    symptoms?: string;
+    current_symptoms?: string;
+    input_mode?: string;
     age?: number;
     gender?: string;
     past_history?: any;
     location?: string;
+    model_id?: string;
   }): Promise<TriageRecord> {
     const response = await apiClient.post('/triage/assess/', data);
     return response.data;
   }
 
+  async getAvailableModels(): Promise<AvailableModel[]> {
+    const response = await apiClient.get('/models/available');
+    return response.data.models || [];
+  }
+
   async getTriageHistory(): Promise<TriageRecord[]> {
     const response = await apiClient.get('/triage/history/');
-    return response.data;
+    if (Array.isArray(response.data)) return response.data;
+    // Paginated {count, next, previous, results}; fall back to the legacy
+    // `history` key for older backends.
+    return response.data?.results || response.data?.history || [];
   }
 
   // ==================== CONSULTATION SESSIONS ====================
 
-  async startConsultation(symptoms?: string): Promise<{ session: ConsultationSession }> {
-    const response = await apiClient.post('/consultation/start/', { symptoms });
+  async startConsultation(symptoms?: string, hasReport = false): Promise<{ session: ConsultationSession }> {
+    const response = await apiClient.post('/consultation/start/', { symptoms, has_report: hasReport });
     return response.data;
   }
 
@@ -387,8 +528,10 @@ class ApiService {
   // ==================== DIETARY RECOMMENDATIONS ====================
 
   async getDietaryRecommendations(data: {
-    risk_level: string;
-    possible_conditions: string[];
+    risk_level?: string;
+    possible_conditions?: string[];
+    symptoms?: string;
+    stated_preferences?: string;
   }): Promise<DietaryRecommendations> {
     const response = await apiClient.post('/recommendations/dietary/', data);
     return response.data;
@@ -444,7 +587,8 @@ class ApiService {
     to_date?: string;
   }) {
     const response = await apiClient.get('/clinician/patients/', { params: filters });
-    return response.data;
+    // Paginated {count, next, previous, results}; tolerate a bare array too.
+    return Array.isArray(response.data) ? response.data : (response.data?.results ?? []);
   }
 
   async assignPatient(data: { triage_id: number; priority?: number; notes?: string }) {
@@ -465,7 +609,8 @@ class ApiService {
   async getClinicianAlerts(isRead?: boolean) {
     const params = isRead !== undefined ? { is_read: isRead } : {};
     const response = await apiClient.get('/clinician/alerts/', { params });
-    return response.data;
+    // Paginated {count, next, previous, results}; tolerate a bare array too.
+    return Array.isArray(response.data) ? response.data : (response.data?.results ?? []);
   }
 
   async markAlertRead(alertId: number) {
@@ -507,6 +652,7 @@ export type {
   User,
   UserProfile,
   TriageRecord,
+  AvailableModel,
   ConsultationSession,
   DietaryRecommendations,
   DetailedReportAnalysis,

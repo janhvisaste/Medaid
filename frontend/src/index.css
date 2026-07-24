@@ -1,44 +1,242 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
 
+/* ─────────────────────────────────────────────────────────────────────────
+   MedAid type pairing
+   • Display / headings: Newsreader — a humanist editorial serif. Reads as
+     considered and calm rather than clinical-form-y or startup-generic.
+   • Body / UI / data:   Public Sans — designed for legibility by readers who
+     are stressed or in a hurry (US gov design system). Credible, neutral.
+   Anything functional (labels, data, inputs) uses Public Sans; the serif is
+   reserved for headings so contrast between the two is intentional.
+   ──────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
 
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS  (single source of truth — consumed by Tailwind via
+   arbitrary values, by medaidTokens.ts, and by component styles)
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+
+  /* ── Type scale (12 / 14 / 16 / 18 / 24 / 32 / 40 / 52) ─────────────────── */
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --text-xs: 0.75rem;   --leading-xs: 1rem;      /* 12 */
+  --text-sm: 0.875rem;  --leading-sm: 1.25rem;   /* 14 */
+  --text-base: 1rem;    --leading-base: 1.5rem;  /* 16 */
+  --text-lg: 1.125rem;  --leading-lg: 1.75rem;   /* 18 */
+  --text-xl: 1.5rem;    --leading-xl: 2rem;      /* 24 */
+  --text-2xl: 2rem;     --leading-2xl: 2.5rem;   /* 32 */
+  --text-3xl: 2.5rem;   --leading-3xl: 3rem;     /* 40 */
+  --text-4xl: 3.25rem;  --leading-4xl: 3.5rem;   /* 52 */
+
+  /* ── Neutral (slate) surfaces & ink ────────────────────────────────────── */
+  --medaid-bg: #f6f8f9;
+  --medaid-surface: #ffffff;
+  --medaid-surface-muted: #f1f5f9;
+  --medaid-ink: #0f172a;         /* AAA on surface */
+  --medaid-ink-soft: #475569;    /* AA on surface  */
+  --medaid-ink-muted: #64748b;   /* AA on surface  */
+  --medaid-ink-faint: #94a3b8;   /* placeholders / non-essential only */
+  --medaid-border: #e2e8f0;
+  --medaid-border-strong: #cbd5e1;
+
+  /* ── Brand: MedAid teal (chrome only — never a risk hue) ───────────────── */
+  --brand-50: #f0fdfa;  --brand-100: #ccfbf1; --brand-200: #99f6e4;
+  --brand-300: #5eead4; --brand-400: #2dd4bf; --brand-500: #14b8a6;
+  --brand-600: #0d9488; --brand-700: #0f766e; --brand-800: #115e59;
+  --brand-900: #134e4a;
+  --brand: #0f766e;            /* interactive fill; white text = 4.7:1 ✓   */
+  --brand-hover: #115e59;
+  --brand-contrast: #ffffff;   /* text on --brand                          */
+  --brand-ring: rgba(15, 118, 110, 0.32);
+
+  /* Back-compat aliases (existing components reference --medaid-accent*) */
+  --medaid-accent: var(--brand);
+  --medaid-accent-strong: var(--brand-800);
+  --medaid-accent-soft: #d7f2ee;
+  --medaid-indigo-soft: #e0e7ff;
+  --medaid-focus: var(--brand-ring);
+  --medaid-overlay: rgba(15, 23, 42, 0.58);
+
+  /* ── Risk semantics ────────────────────────────────────────────────────
+     Distinct hues per urgency, each paired ALWAYS with an icon + text label
+     in the UI (colour is never the sole signal). Every soft pairing meets
+     WCAG AA; every solid fill carries white text at ≥ 4.5:1.               */
+  /* Emergency — deep serious red (not error-UI pink)          white/red-700 6.4:1 */
+  --risk-emergency-solid: #b91c1c; --risk-emergency-on-solid: #ffffff;
+  --risk-emergency-soft:  #fef2f2; --risk-emergency-text: #991b1b; /* 7.6:1 */
+  --risk-emergency-border:#fecaca; --risk-emergency-line: #dc2626;
+  /* High — burnt orange */
+  --risk-high-solid: #c2410c; --risk-high-on-solid: #ffffff;
+  --risk-high-soft:  #fff7ed; --risk-high-text: #9a3412; /* 6.9:1 */
+  --risk-high-border:#fed7aa; --risk-high-line: #ea580c;
+  /* Medium — amber/gold */
+  --risk-medium-solid: #b45309; --risk-medium-on-solid: #ffffff;
+  --risk-medium-soft:  #fffbeb; --risk-medium-text: #92400e; /* 7.4:1 */
+  --risk-medium-border:#fde68a; --risk-medium-line: #d97706;
+  /* Low — reassuring green (moved off blue so blue can never read as risk) */
+  --risk-low-solid: #15803d; --risk-low-on-solid: #ffffff;
+  --risk-low-soft:  #f0fdf4; --risk-low-text: #166534; /* 6.5:1 */
+  --risk-low-border:#bbf7d0; --risk-low-line: #16a34a;
+  /* Neutral / informational — slate */
+  --risk-neutral-solid: #475569; --risk-neutral-on-solid: #ffffff;
+  --risk-neutral-soft:  #f1f5f9; --risk-neutral-text: #334155;
+  --risk-neutral-border:#e2e8f0; --risk-neutral-line: #64748b;
+
+  /* ── Radius ────────────────────────────────────────────────────────────── */
+  --radius-xs: 4px;   --radius-sm: 6px;   /* controls: buttons, inputs      */
+  --radius-md: 8px;   --radius-lg: 12px;  /* cards                          */
+  --radius-xl: 16px;  --radius-2xl: 20px; /* large panels                   */
+  --radius-pill: 9999px;                  /* chips, badges, avatars only    */
+
+  /* ── Elevation (3 deliberate levels) ───────────────────────────────────── */
+  --elev-1: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+  --elev-2: 0 2px 4px -1px rgba(15, 23, 42, 0.06), 0 10px 20px -6px rgba(15, 23, 42, 0.10);
+  --elev-3: 0 16px 40px -12px rgba(15, 23, 42, 0.22);
+
+  /* ── Motion ────────────────────────────────────────────────────────────── */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --medaid-bg: #0b1220;
+  --medaid-surface: #131c2e;
+  --medaid-surface-muted: #1c2740;
+  --medaid-ink: #f8fafc;
+  --medaid-ink-soft: #cbd5e1;
+  --medaid-ink-muted: #94a3b8;
+  --medaid-ink-faint: #64748b;
+  --medaid-border: #2a3852;
+  --medaid-border-strong: #3b4a68;
+
+  --brand: #2dd4bf;             /* dark surfaces need a lighter fill        */
+  --brand-hover: #5eead4;
+  --brand-contrast: #04211d;    /* dark text on the lighter brand           */
+  --brand-ring: rgba(45, 212, 191, 0.36);
+
+  --medaid-accent: var(--brand-300, #5eead4);   /* links / accent text      */
+  --medaid-accent-strong: #99f6e4;
+  --medaid-accent-soft: #134e4a;
+  --medaid-indigo-soft: #312e81;
+  --medaid-focus: var(--brand-ring);
+  --medaid-overlay: rgba(2, 6, 23, 0.76);
+
+  --risk-emergency-solid: #dc2626; --risk-emergency-soft: #450a0a;
+  --risk-emergency-text: #fca5a5; --risk-emergency-border: #7f1d1d; --risk-emergency-line: #f87171;
+  --risk-high-solid: #ea580c; --risk-high-soft: #431407;
+  --risk-high-text: #fdba74; --risk-high-border: #7c2d12; --risk-high-line: #fb923c;
+  --risk-medium-solid: #d97706; --risk-medium-soft: #422006;
+  --risk-medium-text: #fcd34d; --risk-medium-border: #78350f; --risk-medium-line: #fbbf24;
+  --risk-low-solid: #16a34a; --risk-low-soft: #052e16;
+  --risk-low-text: #86efac; --risk-low-border: #14532d; --risk-low-line: #4ade80;
+  --risk-neutral-solid: #64748b; --risk-neutral-soft: #1e293b;
+  --risk-neutral-text: #cbd5e1; --risk-neutral-border: #334155; --risk-neutral-line: #94a3b8;
+
+  --elev-1: 0 1px 2px 0 rgba(0, 0, 0, 0.30), 0 1px 3px 0 rgba(0, 0, 0, 0.36);
+  --elev-2: 0 2px 4px -1px rgba(0, 0, 0, 0.36), 0 10px 20px -6px rgba(0, 0, 0, 0.44);
+  --elev-3: 0 16px 40px -12px rgba(0, 0, 0, 0.60);
 }
-@keyframes gradientWave {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-/* Add to your global CSS or index.css */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════════════════════ */
 html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  scroll-behavior: smooth;
 }
 
-* {
-  box-sizing: border-box;
+body {
+  background: var(--medaid-bg);
+  color: var(--medaid-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+* { box-sizing: border-box; }
+
+button, input, textarea, select { font: inherit; }
+
+/* ── Refined, unobtrusive scrollbars (thin + muted, theme-aware) ──────────── */
+* {
+  scrollbar-width: thin;                                  /* Firefox */
+  scrollbar-color: var(--medaid-border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background-color: var(--medaid-border-strong);
+  border-radius: var(--radius-pill);
+  /* transparent border + content-box clip makes the visible thumb ~4px:
+     present but never heavy. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--medaid-ink-faint); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Serif display face for headings — the intentional half of the pairing */
+.font-display,
+h1.font-display, h2.font-display, h3.font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Tabular figures for data / metrics so columns of numbers align */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+::selection {
+  background: var(--medaid-accent-soft);
+  color: var(--medaid-ink);
+}
+
+code {
+  font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas,
+    'Courier New', monospace;
+}
+
+/* ── Accessibility: a single, consistent keyboard focus treatment ────────── */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+/* Mouse users don't get the ring; components that manage their own focus
+   ring (inputs) still work because :focus-visible only fires for keyboard. */
+
+/* ── Accessibility: honour reduced-motion everywhere ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+html:not([data-reduce-motion]) { scroll-behavior: smooth; }
+
+/* ── Motion primitives (respect reduced-motion via the block above) ──────── */
+@keyframes medaid-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes medaid-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  70%  { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.animate-fade-in { animation: medaid-fade-in var(--dur-base) var(--ease-standard) both; }
+.animate-emergency-pulse { animation: medaid-pulse-ring 1.8s var(--ease-standard) infinite; }

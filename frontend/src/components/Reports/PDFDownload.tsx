@@ -1,262 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Download, 
-  FileText, 
-  Calendar,
-  AlertCircle,
-  Loader2,
-  CheckCircle,
-  User
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Calendar, CheckCircle2, Download, FileText, Loader2 } from 'lucide-react';
 import apiService from '../../services/apiService';
 import type { TriageRecord } from '../../services/apiService';
+import RiskBadge from '../ui/RiskBadge';
+import { medaidClasses } from '../../styles/medaidTokens';
+import { Skeleton } from '../ui/Skeleton';
+import ConfirmDeleteButton from '../ui/ConfirmDeleteButton';
 
-interface PDFDownloadButtonProps {
-  triageId?: number;
-  type?: 'assessment' | 'passport';
-  variant?: 'primary' | 'secondary';
-  className?: string;
-}
+// Timeline node colour per risk level — lets severity and recurrence read
+// straight down the rail without reading each badge.
+const RISK_LINE: Record<string, string> = {
+  emergency: 'var(--risk-emergency-line)',
+  high: 'var(--risk-high-line)',
+  medium: 'var(--risk-medium-line)',
+  low: 'var(--risk-low-line)',
+  neutral: 'var(--risk-neutral-line)',
+};
+const riskLine = (level?: string) => RISK_LINE[(level || 'neutral').toLowerCase()] || RISK_LINE.neutral;
 
-const PDFDownloadButton: React.FC<PDFDownloadButtonProps> = ({ 
-  triageId,
-  type = 'assessment',
-  variant = 'primary',
-  className = ''
-}) => {
-  const [downloading, setDownloading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface PDFDownloadButtonProps { triageId?: number; type?: 'assessment' | 'passport'; variant?: 'primary' | 'secondary'; className?: string; }
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      let blob: Blob;
-      let filename: string;
-
-      if (type === 'passport') {
-        blob = await apiService.downloadHealthPassportPDF();
-        filename = `health_passport_${new Date().toISOString().split('T')[0]}.pdf`;
-      } else if (triageId) {
-        blob = await apiService.downloadAssessmentPDF(triageId);
-        filename = `assessment_${triageId}_${new Date().toISOString().split('T')[0]}.pdf`;
-      } else {
-        throw new Error('Triage ID required for assessment PDF');
-      }
-
-      apiService.downloadPDFFile(blob, filename);
-      setSuccess(true);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to download PDF');
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const buttonClasses = variant === 'primary'
-    ? 'bg-blue-600 text-white hover:bg-blue-700'
-    : 'bg-gray-100 text-gray-700 hover:bg-gray-200';
-
-  return (
-    <div className={className}>
-      <button
-        onClick={handleDownload}
-        disabled={downloading}
-        className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${buttonClasses}`}
-      >
-        {downloading ? (
-          <>
-            <Loader2 className="animate-spin" size={20} />
-            Downloading...
-          </>
-        ) : success ? (
-          <>
-            <CheckCircle size={20} />
-            Downloaded!
-          </>
-        ) : (
-          <>
-            <Download size={20} />
-            Download PDF
-          </>
-        )}
-      </button>
-
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2"
-          >
-            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={16} />
-            <p className="text-sm text-red-800">{error}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+const PDFDownloadButton: React.FC<PDFDownloadButtonProps> = ({ triageId, type = 'assessment', variant = 'primary', className = '' }) => {
+  const [loading, setLoading] = useState(false); const [success, setSuccess] = useState(false); const [error, setError] = useState<string | null>(null);
+  const download = async () => { setLoading(true); setError(null); try { const blob = type === 'passport' ? await apiService.downloadHealthPassportPDF() : triageId ? await apiService.downloadAssessmentPDF(triageId) : (() => { throw new Error('Assessment id is missing'); })(); apiService.downloadPDFFile(blob, type === 'passport' ? 'medaid-health-passport.pdf' : `assessment-${triageId}.pdf`); setSuccess(true); setTimeout(() => setSuccess(false), 3000); } catch (err: any) { setError(err.response?.data?.error || err.message || 'Unable to generate report.'); } finally { setLoading(false); } };
+  return <div className={className}><button onClick={download} disabled={loading} className={`px-4 py-2.5 ${variant === 'primary' ? medaidClasses.buttonPrimary : medaidClasses.buttonSecondary} disabled:cursor-not-allowed disabled:opacity-50`}>{loading ? <><Loader2 className="h-4 w-4 animate-spin" />Generating…</> : success ? <><CheckCircle2 className="h-4 w-4" />Downloaded</> : <><Download className="h-4 w-4" />Download PDF</>}</button>{error && <p role="alert" className="mt-2 text-xs text-[var(--risk-emergency-text)]">{error}</p>}</div>;
 };
 
 const AssessmentHistory: React.FC = () => {
-  const [assessments, setAssessments] = useState<TriageRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadAssessments();
-  }, []);
-
-  const loadAssessments = async () => {
-    try {
-      const data = await apiService.getTriageHistory();
-      setAssessments(data);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load assessments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'emergency': return 'bg-red-100 text-red-800 border-red-300';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'low': return 'bg-green-100 text-green-800 border-green-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-        <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-        <div>
-          <p className="text-red-800 font-medium">Error loading assessments</p>
-          <p className="text-red-700 text-sm mt-1">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (assessments.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <FileText className="mx-auto text-gray-400 mb-4" size={48} />
-        <p className="text-gray-600">No assessments yet. Start a consultation to get your first assessment!</p>
-      </div>
-    );
-  }
-
+  const [assessments, setAssessments] = useState<TriageRecord[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
+  // Separate from `error`, which replaces the whole view on a load failure. A
+  // refused delete must not blank out the timeline the user is looking at.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const load = async () => { try { setLoading(true); setError(null); setAssessments(await apiService.getTriageHistory()); } catch { setError('Unable to load assessment history.'); } finally { setLoading(false); } };
+  // Rethrows so ConfirmDeleteButton can surface the backend's refusal message
+  // when an assessment is still under clinician review.
+  const remove = async (id: number) => { await apiService.deleteTriageRecord(id); setAssessments(previous => previous.filter(a => a.id !== id)); };
+  useEffect(() => { load(); }, []);
+  if (loading) return <div className="space-y-4"><Skeleton className="h-28" /><Skeleton className="h-36" /><Skeleton className="h-36" /></div>;
+  if (error) return <div role="alert" className="flex items-center justify-between rounded-md border border-[var(--risk-emergency-border)] bg-[var(--risk-emergency-soft)] px-4 py-3 text-sm text-[var(--risk-emergency-text)]"><span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />{error}</span><button onClick={load} className="font-semibold underline">Retry</button></div>;
+  if (!assessments.length) return <div className={`${medaidClasses.card} px-6 py-16 text-center`}><FileText className="mx-auto mb-4 h-12 w-12 text-[var(--medaid-ink-faint)]" /><p className="font-semibold text-[var(--medaid-ink)]">No assessments yet</p><p className={`mt-2 ${medaidClasses.bodySmall}`}>Start a consultation to create your first report.</p></div>;
   return (
-    <div className="space-y-4">
-      {/* Health Passport Download */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold mb-2">Complete Health Passport</h3>
-            <p className="text-blue-100">Download your comprehensive medical history and all assessments</p>
-          </div>
-          <PDFDownloadButton type="passport" variant="secondary" className="ml-4" />
+    <div className="space-y-6">
+      {actionError && (
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-md border border-[var(--risk-emergency-border)] bg-[var(--risk-emergency-soft)] px-4 py-3 text-sm text-[var(--risk-emergency-text)]">
+          <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" />{actionError}</span>
+          <button onClick={() => setActionError(null)} className="font-semibold underline">Dismiss</button>
         </div>
+      )}
+      <div className={`${medaidClasses.heroPanel} flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between`}>
+        <div>
+          <p className="font-display text-lg font-medium text-[var(--medaid-ink)]">Complete health passport</p>
+          <p className={medaidClasses.bodySmall}>Download your assessments and medical history together.</p>
+        </div>
+        <PDFDownloadButton type="passport" variant="secondary" />
       </div>
 
-      {/* Individual Assessments */}
-      <div className="grid gap-4">
+      {/* Chronological timeline — newest first. The rail + coloured node make a
+          run of high-risk assessments (a worsening trajectory) obvious. */}
+      <ol className="relative ml-1">
         {assessments.map((assessment, index) => (
-          <motion.div
-            key={assessment.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow border border-gray-200"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold border-2 ${getRiskColor(assessment.risk_level)}`}>
-                    {assessment.risk_level.toUpperCase()}
-                  </span>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar size={16} />
-                    <span>{formatDate(assessment.created_at)}</span>
-                  </div>
-                </div>
-                <p className="text-gray-700 leading-relaxed line-clamp-2">
-                  {assessment.current_symptoms}
-                </p>
-              </div>
-              <PDFDownloadButton 
-                triageId={assessment.id} 
-                variant="secondary"
-                className="ml-4"
-              />
-            </div>
-
-            {/* Assessment Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Confidence</p>
-                <p className="font-semibold text-gray-900">{(assessment.confidence * 100).toFixed(0)}%</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Risk Probability</p>
-                <p className="font-semibold text-gray-900">{(assessment.risk_probability * 100).toFixed(0)}%</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Input Mode</p>
-                <p className="font-semibold text-gray-900 capitalize">{assessment.input_mode || 'text'}</p>
-              </div>
-            </div>
-
-            {/* Possible Conditions */}
-            {assessment.possible_conditions && assessment.possible_conditions.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-2">Possible Conditions:</p>
-                <div className="flex flex-wrap gap-2">
-                  {assessment.possible_conditions.map((condition: any, idx: number) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm font-medium"
-                    >
-                      {typeof condition === 'string' ? condition : condition.disease_name}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <li key={assessment.id} className="relative pb-5 pl-8 last:pb-0">
+            {index !== assessments.length - 1 && (
+              <span aria-hidden="true" className="absolute left-[6px] top-3 h-full w-px bg-[var(--medaid-border)]" />
             )}
-          </motion.div>
+            <span
+              aria-hidden="true"
+              style={{ background: riskLine(assessment.risk_level) }}
+              className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-pill border-2 border-[var(--medaid-surface)] shadow-e1"
+            />
+            <article className={`${medaidClasses.compactCardHover} p-5`}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <RiskBadge risk={assessment.risk_level} />
+                    <span className="flex items-center gap-1.5 text-xs text-[var(--medaid-ink-muted)]">
+                      <Calendar className="h-3.5 w-3.5" />{new Date(assessment.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--medaid-ink-soft)]">{assessment.current_symptoms}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <PDFDownloadButton triageId={assessment.id} variant="secondary" />
+                  <ConfirmDeleteButton
+                    label={`Delete assessment from ${new Date(assessment.created_at).toLocaleDateString()}`}
+                    onConfirm={() => remove(assessment.id)}
+                    onError={setActionError}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 border-t border-[var(--medaid-border)] pt-4 sm:grid-cols-3">
+                <div><p className={medaidClasses.mutedSmall}>Confidence</p><p className="mt-1 font-semibold tabular-nums text-[var(--medaid-ink)]">{Math.round((assessment.confidence || 0) * 100)}%</p></div>
+                <div><p className={medaidClasses.mutedSmall}>Risk probability</p><p className="mt-1 font-semibold tabular-nums text-[var(--medaid-ink)]">{Math.round((assessment.risk_probability || 0) * 100)}%</p></div>
+                <div><p className={medaidClasses.mutedSmall}>Input mode</p><p className="mt-1 font-semibold capitalize text-[var(--medaid-ink)]">{assessment.input_mode || 'text'}</p></div>
+              </div>
+            </article>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 };

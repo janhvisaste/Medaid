@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Activity, Eye, EyeOff } from 'lucide-react';
+import { Activity, Eye, EyeOff, HeartPulse, ShieldCheck } from 'lucide-react';
 import authService from '../../services/authService';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { medaidClasses } from '../../styles/medaidTokens';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ const SignupPage: React.FC = () => {
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +53,10 @@ const SignupPage: React.FC = () => {
       setError('Passwords do not match');
       return false;
     }
+    if (!acceptedTerms) {
+      setError('Please agree to the Terms & Privacy Policy');
+      return false;
+    }
     return true;
   };
 
@@ -67,10 +72,11 @@ const SignupPage: React.FC = () => {
         confirm_password: formData.password,
         first_name: formData.first_name,
         last_name: formData.last_name,
+        phone_number: formData.phone,
       };
 
-      await authService.signup(signupData);
-      navigate('/dashboard');
+      const result = await authService.signup(signupData);
+      navigate(result.user?.role === 'clinician' ? '/clinician' : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.');
     } finally {
@@ -78,60 +84,61 @@ const SignupPage: React.FC = () => {
     }
   };
 
-  const authImage = 'https://i.pinimg.com/736x/73/b1/81/73b18143b223d354ba690043ec06d7c5.jpg';
-  const inputClassName = 'h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-300 focus-visible:ring-offset-white';
+  const inputClassName = `${medaidClasses.input} h-11`;
+  const labelClassName = 'mb-1.5 block text-sm font-medium text-[var(--medaid-ink-soft)]';
 
   return (
-    <div className="min-h-screen bg-[#f2f4f8] p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-6xl bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden grid lg:grid-cols-2">
+    <div className={`${medaidClasses.page} flex min-h-screen items-center justify-center p-4 md:p-8`}>
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-panel border border-[var(--medaid-border)] bg-[var(--medaid-surface)] shadow-e2 lg:grid-cols-2">
         <div className="p-8 md:p-12">
           <button
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2 text-slate-700 mb-8"
+            className="mb-8 inline-flex items-center gap-2 text-[var(--medaid-ink-soft)] transition-colors hover:text-[var(--medaid-ink)]"
           >
-            <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
-              <Activity className="w-4 h-4" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand text-brand-contrast">
+              <Activity className="h-4 w-4" />
             </span>
             <span className="font-semibold">Medaid</span>
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-semibold text-slate-900">Welcome to Medaid.</h1>
-          <p className="text-slate-500 mt-2 mb-6">Let's help you get started with better care.</p>
-          <p className="text-sm text-slate-500 mb-6">
+          <h1 className="font-display text-3xl font-medium tracking-tight text-[var(--medaid-ink)] md:text-4xl">Welcome to Medaid.</h1>
+          <p className="mb-6 mt-2 text-[var(--medaid-ink-muted)]">Let's help you get started with better care.</p>
+          <p className="mb-6 text-sm text-[var(--medaid-ink-muted)]">
             Already have an account?{' '}
-            <Link to="/login" className="text-slate-900 font-medium underline">Log in</Link>
+            <Link to="/login" className="font-medium text-[var(--medaid-accent-strong)] underline">Log in</Link>
           </p>
 
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
+            <div role="alert" className="mb-4 rounded-md border border-[var(--risk-emergency-border)] bg-[var(--risk-emergency-soft)] p-3 text-sm text-[var(--risk-emergency-text)]">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
-                <Input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} placeholder="Enter first name" className={inputClassName} autoComplete="off" />
+                <label htmlFor="su-first" className={labelClassName}>First name</label>
+                <Input id="su-first" type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} placeholder="Enter first name" className={inputClassName} autoComplete="off" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
-                <Input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} placeholder="Enter last name" className={inputClassName} autoComplete="off" />
+                <label htmlFor="su-last" className={labelClassName}>Last name</label>
+                <Input id="su-last" type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} placeholder="Enter last name" className={inputClassName} autoComplete="off" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
-                <Input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Enter phone number" className={inputClassName} autoComplete="off" />
+                <label htmlFor="su-phone" className={labelClassName}>Phone</label>
+                <Input id="su-phone" type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="Enter phone number" className={inputClassName} autoComplete="off" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-                <Input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Enter email" className={inputClassName} autoComplete="off" />
+                <label htmlFor="su-email" className={labelClassName}>Email</label>
+                <Input id="su-email" type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Enter email" className={inputClassName} autoComplete="off" />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="relative">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                <label htmlFor="su-password" className={labelClassName}>Password</label>
                 <Input
+                  id="su-password"
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
@@ -140,13 +147,14 @@ const SignupPage: React.FC = () => {
                   className={`${inputClassName} pr-10`}
                   autoComplete="new-password"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-9 text-slate-400">
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-3 top-9 text-[var(--medaid-ink-faint)] transition-colors hover:text-[var(--medaid-ink-soft)]">
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
+                <label htmlFor="su-confirm" className={labelClassName}>Confirm password</label>
                 <Input
+                  id="su-confirm"
                   type={showPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
@@ -158,35 +166,40 @@ const SignupPage: React.FC = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" className="rounded border-slate-300" />
+            <label className="flex items-center gap-2 text-sm text-[var(--medaid-ink-soft)]">
+              <input type="checkbox" className="rounded border-[var(--medaid-border-strong)] text-brand focus-visible:ring-2 focus-visible:ring-[var(--medaid-focus)]" />
               I want to receive Medaid updates and product news
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" className="rounded border-slate-300" />
-              I agree to the Terms & Privacy Policy
+            <label className="flex items-center gap-2 text-sm text-[var(--medaid-ink-soft)]">
+              <input type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} className="rounded border-[var(--medaid-border-strong)] text-brand focus-visible:ring-2 focus-visible:ring-[var(--medaid-focus)]" />
+              I agree to the Terms &amp; Privacy Policy
             </label>
 
-            <Button disabled={loading} type="submit" className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg">
-              {loading ? 'Creating account...' : 'Sign Up'}
+            <Button disabled={loading} type="submit" className="h-11 w-full font-semibold">
+              {loading ? 'Creating account…' : 'Sign up'}
             </Button>
           </form>
         </div>
 
-        <motion.div
-          initial={{ x: 120 }}
-          animate={{ x: 0 }}
-          transition={{ type: 'spring', stiffness: 170, damping: 24 }}
-          className="relative min-h-[420px] lg:min-h-full"
-        >
-          <img src={authImage} alt="Medaid signup visual" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 via-slate-900/25 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-8 md:p-10 text-white">
-            <p className="text-sm font-medium text-white/90 mb-3">Create your Medaid account</p>
-            <h2 className="text-3xl font-semibold leading-tight max-w-md">Get access to triage clarity and smarter healthcare decisions.</h2>
-            <p className="text-sm text-white/80 mt-3">For patients, clinicians, and care teams.</p>
+        {/* Calm, branded trust panel — no stock imagery */}
+        <aside className="relative hidden animate-fade-in overflow-hidden bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 lg:block">
+          <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-10 h-56 w-56 rounded-full bg-black/10 blur-2xl" />
+          <div className="relative flex h-full flex-col justify-between p-10 text-white">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-white/15"><Activity className="h-4 w-4" /></span>
+              <span className="text-lg font-semibold tracking-tight">Medaid</span>
+            </div>
+            <div>
+              <h2 className="font-display text-3xl font-medium leading-tight">Triage clarity and smarter healthcare decisions.</h2>
+              <p className="mt-3 max-w-sm text-sm leading-6 text-white/80">Built for patients, clinicians, and care teams — thoughtful guidance you can act on.</p>
+            </div>
+            <ul className="space-y-2.5 text-sm text-white/85">
+              <li className="flex items-center gap-2.5"><ShieldCheck className="h-4 w-4 shrink-0" /> Encrypted and private from the first step.</li>
+              <li className="flex items-center gap-2.5"><HeartPulse className="h-4 w-4 shrink-0" /> Understand what your symptoms may mean — calmly.</li>
+            </ul>
           </div>
-        </motion.div>
+        </aside>
       </div>
     </div>
   );

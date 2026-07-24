@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Django ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Check for missing migrations
+        working-directory: backend
+        env:
+          DB_ENGINE: sqlite3
+          DJANGO_DEBUG: 'True'
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run test suite
+        working-directory: backend
+        env:
+          # No provider keys in CI. The suite mocks every LLM call, so a run
+          # here also proves the degraded paths work without credentials.
+          DB_ENGINE: sqlite3
+          DJANGO_DEBUG: 'True'
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+        run: python manage.py test --verbosity 2
+
+  frontend:
+    name: Frontend (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Type-check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build (warnings are errors)
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: npm run build
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail on committed credentials
+        run: |
+          # Provider key formats: Google (AIza…), OpenAI/OpenRouter (sk-…),
+          # NVIDIA (nvapi-…). Scans tracked files only, .env.example excluded.
+          if git grep -nIE '(AIza[0-9A-Za-z_-]{30,}|sk-[a-zA-Z0-9]{32,}|nvapi-[0-9A-Za-z_-]{20,})' \
+               -- ':!*.example' ':!.github/workflows/*'; then
+            echo "::error::A credential-shaped string is committed. Rotate it, then remove it."
+            exit 1
+          fi
+          echo "No credential-shaped strings found in tracked files."

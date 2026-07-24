@@ -41,14 +41,14 @@ const FacilitiesMap: React.FC<FacilitiesMapProps> = ({ facilities }) => {
 
   if (validFacilities.length === 0) {
     return (
-      <div className="bg-slate-800 rounded-lg p-4 flex items-center justify-center h-64 text-slate-400 border border-slate-700">
+      <div className="flex h-64 items-center justify-center rounded-card border border-[var(--medaid-border)] bg-[var(--medaid-surface-muted)] p-4 text-sm text-[var(--medaid-ink-muted)]">
         <p>No map data available for these facilities.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg overflow-hidden border border-slate-700 h-64 w-full relative z-0">
+    <div className="relative z-0 h-64 w-full overflow-hidden rounded-card border border-[var(--medaid-border)]">
       <MapContainer center={center} zoom={zoom} scrollWheelZoom={false} style={{ height: '100%', width: '100%', zIndex: 0 }}>
         <ChangeView center={center} zoom={zoom} />
         <TileLayer
