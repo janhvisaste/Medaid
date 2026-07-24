@@ -65,45 +65,87 @@ Also included: condition-aware dietary guidance, risk-weighted nearby-facility l
 ## Architecture
 
 ```mermaid
-flowchart TD
-    PATIENT(["👤 Patient"]) -->|"symptoms / report"| API
+flowchart TB
+    subgraph client["🖥️  CLIENT"]
+        UI["React 19 + TypeScript SPA<br/><i>AI workspace · Reports · Clinician dashboard</i>"]
+    end
 
-    API["⚙️ Django REST API<br/>JWT auth · quota guard"]
-    API --> SCREEN
+    subgraph api["⚙️  DJANGO REST API"]
+        direction TB
+        AUTH["JWT Auth<br/><i>role-based</i>"]
+        QUOTA["Quota Guard<br/><i>global + per-user ceilings</i>"]
+        ROUTES["Routes<br/><i>triage · chat · reports · clinician</i>"]
+        AUTH --> QUOTA --> ROUTES
+    end
 
-    SCREEN{{"🚨 Emergency keyword screen<br/><i>deterministic — runs before any LLM call</i>"}}
-    SCREEN -->|"match"| ESCALATE["⛔ Immediate escalation<br/>no model call · &lt; 50 ms"]
-    SCREEN -->|"no match"| ENGINE
+    subgraph safety["🛡️  SAFETY LAYER — deterministic, runs without any LLM"]
+        direction LR
+        EMERG["Emergency<br/>Keyword Screen"]
+        CALIB["Confidence<br/>Calibration"]
+        ICD["ICD-10-CM<br/>Validation"]
+        LABS["Lab Value<br/>Grounding"]
+        ALERTS["Clinician<br/>Escalation"]
+    end
 
-    ENGINE["🧠 Triage Engine v2<br/>builds prompt + patient history"]
-    ENGINE --> GEMINI
+    subgraph engines["🧠  REASONING ENGINES"]
+        direction LR
+        TRIAGE["Triage Engine v2"]
+        CHAT["Chat Service"]
+        REPORT["Report Insight Engine"]
+        DIET["Dietary Service"]
+    end
 
-    GEMINI["Google Gemini<br/><b>primary provider</b>"]
-    GEMINI -.->|"on failure"| OPENROUTER["OpenRouter<br/><b>failover</b>"]
-    GEMINI --> GROUND
-    OPENROUTER --> GROUND
+    subgraph providers["☁️  LLM PROVIDERS"]
+        direction TB
+        GEM["Google Gemini<br/><b>primary</b>"]
+        OR["OpenRouter<br/><b>failover</b>"]
+        NV["NVIDIA Vision"]
+        GEM -. "every 30 min" .-> CEL["Celery Beat<br/><i>warms failover catalogue</i>"]
+        GEM -. "on error" .-> OR
+        REPORT -. "images only" .-> NV
+    end
 
-    GROUND["🛡️ Grounding layer — deterministic<br/>confidence cap · ICD-10 validation · risk floor"]
-    GROUND --> DB
+    subgraph ocr["👁️  OCR TIERS"]
+        direction LR
+        T1["1 · Apple Vision"] -- fallback --> T2["2 · Tesseract"] -- fallback --> T3["3 · NVIDIA Vision"]
+    end
 
-    DB[("💾 PostgreSQL<br/>TriageRecord · alerts · history")]
-    ESCALATE --> DB
+    subgraph data["💾  PERSISTENCE"]
+        direction LR
+        PG[("PostgreSQL")]
+        RD[("Redis<br/><i>cache · quotas</i>")]
+        KB[["ICD-10-CM index<br/>Lab knowledge base<br/><i>vendored, in-process</i>"]]
+    end
 
-    DB -->|"risk = high / emergency"| ALERT["👩‍⚕️ ClinicianAlert<br/>+ auto-assign least-loaded"]
-    DB -->|"always"| PATIENT2(["📋 Assessment card<br/>+ PDF report"])
+    UI <==>|"HTTPS · JWT"| api
+    ROUTES ==> safety
+    safety ==> engines
+    engines ==>|"primary"| GEM
+    REPORT ==> ocr
+    engines ==> data
+    safety ==> KB
+    api <==> RD
 
-    classDef entry fill:#e0f2fe,stroke:#0369a1,stroke-width:2px,color:#0c4a6e
-    classDef api fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#134e4a
-    classDef safety fill:#fef2f2,stroke:#b91c1c,stroke-width:3px,color:#7f1d1d
-    classDef engine fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87
-    classDef data fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#1e293b
+    classDef clientStyle fill:#e0f2fe,stroke:#0369a1,stroke-width:2px,color:#0c4a6e
+    classDef apiStyle fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#134e4a
+    classDef safetyStyle fill:#fef2f2,stroke:#b91c1c,stroke-width:3px,color:#7f1d1d
+    classDef engineStyle fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px,color:#581c87
+    classDef providerStyle fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12
+    classDef ocrStyle fill:#fefce8,stroke:#a16207,stroke-width:2px,color:#713f12
+    classDef dataStyle fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#1e293b
+    classDef workerStyle fill:#ecfdf5,stroke:#15803d,stroke-width:2px,color:#14532d
 
-    class PATIENT,PATIENT2 entry
-    class API api
-    class SCREEN,ESCALATE,GROUND,ALERT safety
-    class ENGINE,GEMINI,OPENROUTER engine
-    class DB data
+    class UI clientStyle
+    class AUTH,QUOTA,ROUTES apiStyle
+    class EMERG,CALIB,ICD,LABS,ALERTS safetyStyle
+    class TRIAGE,CHAT,REPORT,DIET engineStyle
+    class GEM,OR,NV providerStyle
+    class T1,T2,T3 ocrStyle
+    class PG,RD,KB dataStyle
+    class CEL workerStyle
 ```
+
+**The load-bearing idea:** the safety layer sits *between* the API and the reasoning engines, not after them. Every request passes through it on the way in and on the way out, and every check in it is deterministic — so the system's floor is set by code, not by whether a model responded.
 
 **Safety control:** the emergency screen and the post-generation grounding (confidence cap, ICD-10 validation, risk floor) are pure code — no model in the loop — so they hold even during a full provider outage. A degraded response is floored at `medium` risk and flagged `requires_human_review`; it can never quietly present as `low`.
 
