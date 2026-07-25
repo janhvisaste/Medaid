@@ -4,14 +4,6 @@
 
 **A safety-first AI triage platform that turns a patient's description of their symptoms into a structured, risk-stratified assessment a clinician can act on.**
 
-[![CI](https://github.com/janhvisaste/Medaid/actions/workflows/ci.yml/badge.svg)](https://github.com/janhvisaste/Medaid/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Django 4.2](https://img.shields.io/badge/Django-4.2-092E20.svg?logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/tests-343%20passing-brightgreen.svg)](#testing)
-[![IEEE](https://img.shields.io/badge/IEEE-ICTBIG%202025-00629B.svg)](https://ieeexplore.ieee.org/document/11323835)
-
 Published at **IEEE ICTBIG 2025** · [Read the paper](https://ieeexplore.ieee.org/document/11323835) · [Cite](#citation)
 
 </div>
