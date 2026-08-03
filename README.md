@@ -1,6 +1,5 @@
 <div align="center">
 
-<img width="800" src="https://github.com/user-attachments/assets/d13b3d60-bb5b-4730-b3d8-6f14ab6c9185" alt="MedAid banner" />
 
 
 # MedAid
@@ -14,6 +13,8 @@ Turns a patient's description of their symptoms into a structured, risk-stratifi
 [![MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 </div>
+
+<img width="800" src="https://github.com/user-attachments/assets/d13b3d60-bb5b-4730-b3d8-6f14ab6c9185" alt="MedAid banner" />
 
 > **MedAid is a research prototype, not a medical device.** It has not been clinically validated or reviewed by any regulatory body. Its output is preliminary guidance only, never a substitute for professional diagnosis. In an emergency, contact your local emergency services.
 
