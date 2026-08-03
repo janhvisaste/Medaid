@@ -14,7 +14,8 @@ Turns a patient's description of their symptoms into a structured, risk-stratifi
 
 </div>
 
-<img width="800" src="https://github.com/user-attachments/assets/d13b3d60-bb5b-4730-b3d8-6f14ab6c9185" alt="MedAid banner" />
+<img align="center" width="1436" height="840" alt="image" src="https://github.com/user-attachments/assets/444d9ebd-e26d-4706-9252-955d0530ab64" />
+
 
 > **MedAid is a research prototype, not a medical device.** It has not been clinically validated or reviewed by any regulatory body. Its output is preliminary guidance only, never a substitute for professional diagnosis. In an emergency, contact your local emergency services.
 
