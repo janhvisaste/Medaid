@@ -122,52 +122,11 @@ The part of the system that matters most, in the order a request passes through 
 
 ## 🏛️ Architecture
 
-```mermaid
-flowchart TB
-    subgraph client["🖥️ CLIENT"]
-        UI["React 19 + TypeScript SPA"]
-    end
-
-    subgraph api["⚙️ DJANGO REST API"]
-        AUTH["JWT Auth"] --> QUOTA["Quota Guard"] --> ROUTES["Routes"]
-    end
-
-    subgraph safety["🛡️ SAFETY LAYER — deterministic, no LLM required"]
-        direction LR
-        EMERG["Emergency Screen"]
-        CALIB["Confidence Calibration"]
-        ICD["ICD-10-CM Validation"]
-        LABS["Lab Value Grounding"]
-        ALERTS["Clinician Escalation"]
-    end
-
-    subgraph engines["🧠 REASONING ENGINES"]
-        TRIAGE["Triage Engine v2"]
-        CHAT["Chat Service"]
-        REPORT["Report Insight Engine"]
-        DIET["Dietary Service"]
-    end
-
-    subgraph providers["☁️ LLM PROVIDERS"]
-        GEM["Gemini (primary)"]
-        OR["OpenRouter (failover)"]
-        NV["NVIDIA Vision"]
-    end
-
-    subgraph data["💾 PERSISTENCE"]
-        PG[("PostgreSQL")]
-        RD[("Redis")]
-        KB[["ICD-10-CM + Lab KB"]]
-    end
-
-    UI <==> api
-    ROUTES ==> safety ==> engines
-    engines ==>|primary| GEM
-    GEM -.->|on error| OR
-    REPORT --> NV
-    engines ==> data
-    safety ==> KB
-```
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4f2db604-d558-4990-aa05-8b9adaee7b2e"
+       alt="Sys Architecture"
+       width="100%">
+</p>
 
 **Failover:** exactly one cross-provider attempt against OpenRouter, resolved from a catalogue refreshed every 30 minutes by a Celery beat job — so discovering a fallback model costs no extra latency on the request path.
 
